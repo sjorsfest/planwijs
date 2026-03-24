@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -5,20 +7,26 @@ from sqlmodel import select
 from app.database import get_session
 from app.models import Event, EventCreate
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/events", tags=["events"])
 
 
 @router.get("/", response_model=list[Event])
 async def list_events(session: AsyncSession = Depends(get_session)):
     result = await session.execute(select(Event))
-    return result.scalars().all()
+    events = result.scalars().all()
+    logger.debug("Listed %d events", len(events))
+    return events
 
 
 @router.get("/{event_id}", response_model=Event)
 async def get_event(event_id: str, session: AsyncSession = Depends(get_session)):
     event = await session.get(Event, event_id)
     if not event:
+        logger.warning("Event not found: id=%s", event_id)
         raise HTTPException(status_code=404, detail="Event not found")
+    logger.debug("Fetched event: id=%s", event_id)
     return event
 
 
@@ -28,6 +36,7 @@ async def create_event(data: EventCreate, session: AsyncSession = Depends(get_se
     session.add(event)
     await session.commit()
     await session.refresh(event)
+    logger.info("Created event: id=%s name=%s", event.id, event.name)
     return event
 
 
@@ -35,11 +44,13 @@ async def create_event(data: EventCreate, session: AsyncSession = Depends(get_se
 async def update_event(event_id: str, data: Event, session: AsyncSession = Depends(get_session)):
     event = await session.get(Event, event_id)
     if not event:
+        logger.warning("Update failed, event not found: id=%s", event_id)
         raise HTTPException(status_code=404, detail="Event not found")
     update = data.model_dump(exclude_unset=True, exclude={"id"})
     event.sqlmodel_update(update)
     await session.commit()
     await session.refresh(event)
+    logger.info("Updated event: id=%s fields=%s", event_id, list(update.keys()))
     return event
 
 
@@ -47,6 +58,8 @@ async def update_event(event_id: str, data: Event, session: AsyncSession = Depen
 async def delete_event(event_id: str, session: AsyncSession = Depends(get_session)):
     event = await session.get(Event, event_id)
     if not event:
+        logger.warning("Delete failed, event not found: id=%s", event_id)
         raise HTTPException(status_code=404, detail="Event not found")
     await session.delete(event)
     await session.commit()
+    logger.info("Deleted event: id=%s", event_id)

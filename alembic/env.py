@@ -1,6 +1,7 @@
 import asyncio
 from logging.config import fileConfig
 
+import alembic_postgresql_enum  # noqa: F401 — registers enum migration support
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
@@ -12,7 +13,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 from app.config import settings  # noqa: E402
-from app.models import User, Event  # noqa: F401, E402
+from app.models import User, Event, Method, Book, BookChapter  # noqa: F401, E402
 from sqlmodel import SQLModel  # noqa: E402
 
 target_metadata = SQLModel.metadata

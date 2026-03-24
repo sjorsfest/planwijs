@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     google_client_secret: str
     google_redirect_uri: str = "http://localhost:8000/auth/google/callback"
     oauth_state_secret: str
+    openrouter_api_key: str
 
 
-settings = Settings()
+settings = Settings()  # type: ignore[call-arg]  # pydantic-settings loads from .env

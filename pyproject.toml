@@ -15,4 +15,12 @@ dependencies = [
     "pydantic-settings>=2.13.1",
     "python-jose[cryptography]>=3.5.0",
     "sqlmodel>=0.0.37",
+    "beautifulsoup4>=4.12.0",
+    "lxml>=5.0.0",
+    "alembic-postgresql-enum>=1.10.0",
+]
+
+[dependency-groups]
+dev = [
+    "ty>=0.0.24",
 ]
