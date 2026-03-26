@@ -1,6 +1,6 @@
 """remove legacy subject columns from books and subjects
 
-Revision ID: 0006_remove_legacy_subject_columns
+Revision ID: 0006_remove_legacy_subject
 Revises: 0005_add_subject_book_relation
 Create Date: 2026-03-26 16:00:00.000000
 
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision: str = "0006_remove_legacy_subject_columns"
+revision: str = "0006_remove_legacy_subject"
 down_revision: Union[str, Sequence[str], None] = "0005_add_subject_book_relation"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

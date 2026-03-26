@@ -66,3 +66,13 @@ class ClassDifficulty(str, Enum):
     GREEN = "Groen"
     ORANGE = "Oranje"
     RED = "Rood"
+
+
+class LesplanStatus(str, Enum):
+    PENDING = "pending"
+    GENERATING_OVERVIEW = "generating_overview"
+    OVERVIEW_READY = "overview_ready"
+    REVISING_OVERVIEW = "revising_overview"
+    GENERATING_LESSONS = "generating_lessons"
+    COMPLETED = "completed"
+    FAILED = "failed"

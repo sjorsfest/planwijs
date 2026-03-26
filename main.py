@@ -6,7 +6,7 @@ from fastapi import FastAPI
 
 from app.database import dispose_engine
 from app.logging_config import configure_logging
-from app.routes import auth, users, events, methods, books, classes, subjects
+from app.routes import auth, users, events, methods, books, classes, subjects, lesplan
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -27,5 +27,6 @@ app.include_router(methods.router)
 app.include_router(books.router)
 app.include_router(classes.router)
 app.include_router(subjects.router)
+app.include_router(lesplan.router)
 
 logger.info("Application started")

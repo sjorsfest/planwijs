@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(.venv/bin/python -c \"from app.models.book import Book; print\\(''ok''\\)\")"
+      "Bash(.venv/bin/python -c \"from app.models.book import Book; print\\(''ok''\\)\")",
+      "Bash(find /Users/jeroenmeij/Desktop/personal/planwijs -type f -name *lesplan* -o -name *lesson*)",
+      "Bash(uv run:*)"
     ]
   }
 }

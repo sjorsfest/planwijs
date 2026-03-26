@@ -1,0 +1,91 @@
+from typing import Any, List, Optional
+
+from sqlalchemy import Column
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlmodel import Field, Relationship
+
+from app.models.base import BaseModel
+from app.models.enums import LesplanStatus
+
+class LesplanRequest(BaseModel, table=True):
+    __tablename__ = "lesplan_request"
+
+    user_id: str = Field(foreign_key="user.id", index=True)
+    class_id: str = Field(foreign_key="class.id", index=True)
+    book_id: str = Field(foreign_key="book.id", index=True)
+    selected_paragraph_ids: List[str] = Field(
+        default_factory=list,
+        sa_column=Column("selected_paragraph_ids", JSONB, nullable=False, server_default="[]"),
+    )
+    num_lessons: int = Field(ge=1)
+    lesson_duration_minutes: int = Field(ge=1)
+    status: LesplanStatus = Field(
+        default=LesplanStatus.PENDING,
+        sa_column=Column(
+            SAEnum(LesplanStatus, name="lesplan_status", create_type=False),
+            nullable=False,
+        ),
+    )
+
+    overview: Optional["LesplanOverview"] = Relationship(back_populates="request")
+    feedback_messages: List["LesplanFeedbackMessage"] = Relationship(back_populates="request")
+
+
+class LesplanOverview(BaseModel, table=True):
+    __tablename__ = "lesplan_overview"
+
+    request_id: str = Field(foreign_key="lesplan_request.id", unique=True, index=True)
+    title: str
+    learning_goals: str
+    key_knowledge: List[str] = Field(
+        default_factory=list,
+        sa_column=Column("key_knowledge", JSONB, nullable=False, server_default="[]"),
+    )
+    recommended_approach: str
+    learning_progression: str
+    lesson_outline: List[Any] = Field(
+        default_factory=list,
+        sa_column=Column("lesson_outline", JSONB, nullable=False, server_default="[]"),
+    )
+    didactic_approach: str
+
+    request: Optional["LesplanRequest"] = Relationship(back_populates="overview")
+    lessons: List["LessonPlan"] = Relationship(back_populates="overview")
+
+
+class LessonPlan(BaseModel, table=True):
+    __tablename__ = "lesson_plan"
+
+    overview_id: str = Field(foreign_key="lesplan_overview.id", index=True)
+    lesson_number: int = Field(ge=1)
+    title: str
+    learning_objectives: List[str] = Field(
+        default_factory=list,
+        sa_column=Column("learning_objectives", JSONB, nullable=False, server_default="[]"),
+    )
+    time_sections: List[Any] = Field(
+        default_factory=list,
+        sa_column=Column("time_sections", JSONB, nullable=False, server_default="[]"),
+    )
+    required_materials: List[str] = Field(
+        default_factory=list,
+        sa_column=Column("required_materials", JSONB, nullable=False, server_default="[]"),
+    )
+    covered_paragraph_ids: List[str] = Field(
+        default_factory=list,
+        sa_column=Column("covered_paragraph_ids", JSONB, nullable=False, server_default="[]"),
+    )
+    teacher_notes: str
+
+    overview: Optional["LesplanOverview"] = Relationship(back_populates="lessons")
+
+
+class LesplanFeedbackMessage(BaseModel, table=True):
+    __tablename__ = "lesplan_feedback_message"
+
+    request_id: str = Field(foreign_key="lesplan_request.id", index=True)
+    role: str  # "teacher" | "assistant"
+    content: str
+
+    request: Optional["LesplanRequest"] = Relationship(back_populates="feedback_messages")
