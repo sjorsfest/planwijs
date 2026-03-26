@@ -31,7 +31,7 @@ class LessonOutlineItem(BaseModel):
 
 class GeneratedLesplanOverview(BaseModel):
     title: str
-    learning_goals: str
+    learning_goals: list[str] = Field(min_length=1)
     key_knowledge: list[str] = Field(min_length=1)
     recommended_approach: str
     learning_progression: str
@@ -103,17 +103,71 @@ concrete lessen te genereren.
   Groen = goed hanteerbaar, Oranje = vraagt extra aandacht, Rood = intensieve begeleiding.
 
 ## Differentiatie per niveau
-- Vmbo: concrete aanpak, veel herhaling, visuele ondersteuning.
-- Havo: balans tussen begrip en toepassing, ruimte voor zelfstandigheid.
-- Vwo / Gymnasium: analytische verdieping, hogere-orde denkvragen, zelfstandig redeneren.
+- Kijk altijd naar zowel niveau als leerjaar.
+  Het niveau zegt vooral iets over hoe abstract de stof mag zijn, hoeveel zelfstandigheid je kunt vragen
+  en hoeveel taalsteun leerlingen nodig hebben.
+  Het leerjaar zegt vooral iets over voorkennis, concentratie, werkhouding en hoe groot de stap naar nieuwe situaties kan zijn.
+- Vmbo:
+  werk concreet en duidelijk. Gebruik korte uitleg, voorbeelden uit de leefwereld van leerlingen,
+  visuele steun en veel herhaling. Een passende lessenserie bestaat uit kleine stappen,
+  veel begeleide oefening en regelmatige controle of leerlingen het begrijpen.
+- Binnen het vmbo zijn er ook duidelijke verschillen per leerweg:
+  Basisberoepsgerichte leerweg (B):
+  deze leerweg is het meest praktisch. Kies voor kleine stappen, korte opdrachten,
+  veel voordoen, veel herhaling en intensieve begeleiding. Laat leerlingen vooral leren door te doen.
+  Kaderberoepsgerichte leerweg (K):
+  deze leerweg combineert praktijk en theorie, maar vraagt nog steeds om veel structuur.
+  Lessen mogen iets meer theorie bevatten dan bij basis, zolang de uitleg helder blijft
+  en leerlingen de stof meteen kunnen toepassen.
+  Gemengde leerweg (G):
+  deze leerweg ligt dichter bij theoretisch onderwijs, maar met een praktijkvak erbij.
+  Leerlingen kunnen meer theorie aan, maar profiteren nog van concrete opdrachten
+  en een duidelijke koppeling tussen begrip en toepassing.
+  Theoretische leerweg (T):
+  dit is de meest theoretische vmbo-leerweg. Je kunt meer nadruk leggen op begrip,
+  uitleg, verbanden leggen en schriftelijke verwerking, maar duidelijke structuur blijft belangrijk.
+- Havo:
+  combineer duidelijke uitleg met opdrachten waarin leerlingen verbanden leggen en de stof toepassen.
+  Geef structuur, maar bouw ook momenten in waarin leerlingen zelfstandig werken en hun keuzes toelichten.
+- Vwo / Gymnasium:
+  bied meer ruimte voor abstract denken, analyseren en zelfstandig redeneren.
+  Een passende lessenserie gaat dieper in op begrippen, laat leerlingen perspectieven vergelijken
+  en vraagt om onderbouwing van antwoorden.
+- Leerjaar 1 (meestal 12-13 jaar):
+  leerlingen wennen vaak nog aan het voortgezet onderwijs. Ze hebben baat bij veel structuur,
+  korte opdrachten, duidelijke instructies en steun bij plannen en samenwerken.
+  Kies daarom voor een vaste lesopbouw, eenvoudige vaktaal, veel voordoen en samen oefenen.
+- Leerjaar 2 (meestal 13-14 jaar):
+  leerlingen kennen de routines beter, maar concentratie en motivatie wisselen nog vaak.
+  Ze kunnen iets meer zelf, zolang de stappen helder blijven.
+  Bouw voort op bekende werkvormen en laat leerlingen eenvoudige verbanden uitleggen.
+- Leerjaar 3 (meestal 14-15 jaar):
+  leerlingen kunnen vaker verantwoordelijkheid nemen en redeneringen langer vasthouden.
+  Je kunt meer toepassing en vergelijking vragen, maar duidelijke structuur en tussentijdse checks blijven nodig.
+- Leerjaar 4 (meestal 15-16 jaar):
+  leerlingen kunnen meestal gerichter en zelfstandiger werken. Ze kunnen meer vakspecifieke diepgang aan,
+  zolang doelen en feedback duidelijk zijn. Lessen mogen dus inhoudelijk steviger zijn
+  en meer zelfstandige verwerking bevatten.
+- Leerjaar 5 (meestal 16-17 jaar):
+  leerlingen kunnen langer geconcentreerd werken en beter onderbouwen waarom een antwoord sterk is.
+  Geef ruimte aan complexere opdrachten, argumentatie en gerichte voorbereiding op toetsing of examen.
+- Leerjaar 6 (meestal 17-18 jaar, vwo/gymnasium):
+  leerlingen kunnen meestal het meest zelfstandig werken, plannen en kritisch denken.
+  Lessen mogen daarom meer diepgang, nuance en evaluatie vragen.
 
 ## Uitvoer
 - title: een specifieke, inhoudelijke titel voor het gehele lesplan.
-- learning_goals: de overkoepelende leerdoelen voor de gehele lessenserie (4-6 zinnen).
-  Beschrijf wat leerlingen aan het einde weten, begrijpen en kunnen toepassen dat ze
-  voorheen niet konden. Formuleer concreet en ambitieus.
-- key_knowledge: een lijst van de kernconcepten en -kennis die leerlingen opdoen
-  (6-10 items). Elk item is een concreet stuk kennis of inzicht, inhoudelijk geformuleerd.
+- learning_goals: een lijst van 4-6 overkoepelende leerdoelen voor de gehele lessenserie.
+  Elk leerdoel beschrijft een vaardigheid of competentie die leerlingen ontwikkelen:
+  wat ze aan het einde kunnen *doen*, *begrijpen* of *toepassen* dat ze voorheen niet konden.
+  Formuleer vanuit het perspectief van de leerling, concreet en ambitieus.
+  Bijvoorbeeld: "Leerlingen kunnen fotosynthese uitleggen en de rol van licht daarin beschrijven."
+- key_knowledge: een lijst van 6-10 kernconcepten en feitelijke kennis die leerlingen opdoen.
+  Dit zijn de inhoudelijke bouwstenen: concrete begrippen, feiten of inzichten die leerlingen
+  kennen aan het einde van de lessenserie. Formuleer inhoudelijk, niet als vaardigheid.
+  Bijvoorbeeld: "Chlorofyl absorbeert licht en zet dit om in chemische energie."
+  Verschil met learning_goals: leerdoelen beschrijven wat leerlingen *kunnen doen*;
+  kernkennis beschrijft wat leerlingen *weten* (de inhoud zelf).
 - recommended_approach: jouw aanbevolen pedagogische aanpak voor dit specifieke onderwerp
   en deze doelgroep, gebaseerd op vakdidactische kennis (4-6 zinnen). Leg uit waarom
   deze aanpak het meest effectief is voor juist dit vak en niveau, met verwijzing naar
@@ -128,7 +182,7 @@ concrete lessen te genereren.
 - didactic_approach: de uitgewerkte didactische aanpak voor de gehele serie (5-8 zinnen).
   Beschrijf concreet welke werkvormen worden ingezet, hoe lessen zijn opgebouwd
   (bijv. activering → instructie → verwerking → reflectie), hoe differentiatie
-  plaatsvindt en hoe de rode draad over alle lessen loopt.
+  plaatsvindt op basis van zowel niveau als leerjaar en hoe de rode draad over alle lessen loopt.
 
 Schrijf in correct, helder Nederlands. Wees concreet en vermijd vage algemeenheden.
 """
@@ -168,9 +222,50 @@ naar concrete, uitvoerbare lesprogramma's - een per les.
 - Kies activity_type uit: introduction, instruction, activity, discussion, assessment, closure.
 
 ## Differentiatie per niveau
-- Vmbo: concrete opdrachten, stap-voor-stap, korte activiteiten.
-- Havo: evenwicht tussen begrip en toepassing.
-- Vwo / Gymnasium: analytische verdieping, zelfstandig redeneren.
+- Kijk bij elke les naar zowel niveau als leerjaar.
+  Het niveau bepaalt vooral hoeveel abstractie, zelfstandigheid en taal je kunt vragen.
+  Het leerjaar bepaalt vooral hoeveel voorkennis, concentratie en zelfsturing je mag verwachten.
+- Vmbo:
+  kies voor concrete opdrachten, korte uitleg, stap-voor-stap begeleiding, visuele ondersteuning
+  en verwerking in herkenbare situaties. Controleer regelmatig of leerlingen het begrijpen.
+- Maak binnen vmbo ook onderscheid tussen de leerwegen:
+  Basisberoepsgerichte leerweg (B):
+  kies voor sterk praktische opdrachten, kleine stappen, veel herhaling en veel begeleiding.
+  Leerlingen leren hier het best door te doen.
+  Kaderberoepsgerichte leerweg (K):
+  combineer praktijk met iets meer theorie. Geef duidelijke structuur en laat leerlingen
+  de uitleg snel toepassen in een concrete opdracht.
+  Gemengde leerweg (G):
+  bied een combinatie van theorie en praktijk. Leerlingen kunnen meer theorie verwerken,
+  maar hebben nog baat bij een duidelijke koppeling met een praktische context.
+  Theoretische leerweg (T):
+  leg meer nadruk op begrip, uitleg, verbanden en schriftelijke verwerking.
+  Deze leerlingen kunnen meer theorie aan, maar hebben nog steeds baat bij duidelijke structuur.
+- Havo:
+  kies voor een goede balans tussen begrijpen en toepassen.
+  Geef duidelijke structuur, maar laat leerlingen ook zelfstandig werken, verbanden leggen
+  en hun keuzes toelichten.
+- Vwo / Gymnasium:
+  kies voor meer analytische diepgang, open vragen en opdrachten die om onderbouwing vragen.
+  Laat leerlingen zelfstandig redeneren, perspectieven vergelijken en de stof toepassen in nieuwe situaties.
+- Leerjaar 1 (meestal 12-13 jaar):
+  houd lessen strak opgebouwd, met korte taken, veel activering en duidelijke verwachtingen.
+  Leerlingen hebben nog veel steun nodig bij plannen, samenwerken en het begrijpen van vaktaal.
+- Leerjaar 2 (meestal 13-14 jaar):
+  bouw voort op vaste routines, wissel werkvormen af en vergroot de zelfstandigheid voorzichtig.
+  Duidelijke tussenstappen en directe feedback blijven belangrijk.
+- Leerjaar 3 (meestal 14-15 jaar):
+  laat leerlingen meer zelf doen en uitleggen, maar houd de lesstructuur duidelijk.
+  Passende lessen vragen om meer toepassing, vergelijking en uitleg van de gekozen aanpak.
+- Leerjaar 4 (meestal 15-16 jaar):
+  bied meer vakspecifieke diepgang, langere denklijnen en meer zelfstandige verwerking.
+  Geef daarbij duidelijke feedback op kwaliteit en nauwkeurigheid.
+- Leerjaar 5 (meestal 16-17 jaar):
+  maak ruimte voor complexere opdrachten, argumentatie en examengerichte oefening.
+  Leerlingen kunnen vaak langer geconcentreerd werken en beter kijken naar de kwaliteit van hun antwoorden.
+- Leerjaar 6 (meestal 17-18 jaar, vwo/gymnasium):
+  benut de grotere zelfstandigheid en het kritisch denken van leerlingen.
+  Lessen mogen daarom vragen om synthese, evaluatie, nuance en zelfsturing.
 
 ## Verdeling van paragrafen
 - Verdeel de paragrafen logisch over de lessen; elke les behandelt een of meer paragrafen.
@@ -184,7 +279,8 @@ naar concrete, uitvoerbare lesprogramma's - een per les.
 ## Uitvoer
 - Schrijf alle tekst in correct, helder Nederlands.
 - Lestitel is specifiek voor de inhoud van die les.
-- teacher_notes bevatten concrete tips: misconcepties, differentiatiesuggesties, extra ondersteuning.
+- teacher_notes bevatten concrete tips: misconcepties, differentiatiesuggesties, extra ondersteuning en aandachtspunten
+  die passen bij zowel niveau als leerjaar.
 """
 
 
@@ -269,6 +365,7 @@ def _build_overview_prompt(ctx: LesplanContext) -> str:
 
 
 def _build_overview_text(overview: GeneratedLesplanOverview) -> str:
+    learning_goals_lines = "\n".join(f"  - {item}" for item in overview.learning_goals)
     key_knowledge_lines = "\n".join(f"  - {item}" for item in overview.key_knowledge)
     lesson_outline_lines = "\n".join(
         f"  Les {item.lesson_number}: {item.subject_focus} — {item.description}"
@@ -277,7 +374,7 @@ def _build_overview_text(overview: GeneratedLesplanOverview) -> str:
     )
     return (
         f"Titel: {overview.title}\n"
-        f"Leerdoelen:\n{overview.learning_goals}\n\n"
+        f"Leerdoelen:\n{learning_goals_lines}\n\n"
         f"Kernkennis:\n{key_knowledge_lines}\n\n"
         f"Aanbevolen aanpak:\n{overview.recommended_approach}\n\n"
         f"Leerlijn:\n{overview.learning_progression}\n\n"
