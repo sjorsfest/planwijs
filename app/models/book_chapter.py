@@ -10,5 +10,4 @@ class BookChapter(BaseModel, table=True):
 
     index: int
     title: str
-    toets_url: Optional[str] = None
     book_id: str = Field(foreign_key="book.id")

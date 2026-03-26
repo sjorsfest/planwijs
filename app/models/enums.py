@@ -27,6 +27,13 @@ class Subject(str, Enum):
     UNKNOWN = "Unknown"
 
 
+class SubjectCategory(str, Enum):
+    TALEN = "Talen"
+    EXACTE_VAKKEN = "Exacte vakken"
+    MENS_EN_MAATSCHAPPIJ = "Mens- en maatschappijvakken"
+    ECONOMIE = "Economie en bedrijf"
+
+
 class Level(str, Enum):
     HAVO = "Havo"
     VWO = "Vwo"
@@ -46,3 +53,16 @@ class SchoolYear(str, Enum):
     YEAR_5 = "5e jaar"
     YEAR_6 = "6e jaar"
     UNKNOWN = "Unknown"
+
+
+class ClassDifficulty(str, Enum):
+    """Verkeerslichtmodel voor klassenmoeilijkheid.
+
+    Groen: goed hanteerbaar.
+    Oranje: vraagt extra aandacht.
+    Rood: uitdagend, intensieve begeleiding nodig.
+    """
+
+    GREEN = "Groen"
+    ORANGE = "Oranje"
+    RED = "Rood"

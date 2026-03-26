@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from app.database import get_session
+from app.database import get_session, run_read_with_retry
 from app.models import User
 
 logger = logging.getLogger(__name__)
@@ -13,21 +13,27 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.get("/", response_model=list[User])
-async def list_users(session: AsyncSession = Depends(get_session)):
-    result = await session.execute(select(User))
-    users = result.scalars().all()
-    logger.debug("Listed %d users", len(users))
-    return users
+async def list_users():
+    async def operation(session: AsyncSession) -> list[User]:
+        result = await session.execute(select(User))
+        users = result.scalars().all()
+        logger.debug("Listed %d users", len(users))
+        return users
+
+    return await run_read_with_retry(operation)
 
 
 @router.get("/{user_id}", response_model=User)
-async def get_user(user_id: str, session: AsyncSession = Depends(get_session)):
-    user = await session.get(User, user_id)
-    if not user:
-        logger.warning("User not found: id=%s", user_id)
-        raise HTTPException(status_code=404, detail="User not found")
-    logger.debug("Fetched user: id=%s", user_id)
-    return user
+async def get_user(user_id: str):
+    async def operation(session: AsyncSession) -> User:
+        user = await session.get(User, user_id)
+        if not user:
+            logger.warning("User not found: id=%s", user_id)
+            raise HTTPException(status_code=404, detail="User not found")
+        logger.debug("Fetched user: id=%s", user_id)
+        return user
+
+    return await run_read_with_retry(operation)
 
 
 @router.post("/", response_model=User, status_code=201)
