@@ -1,8 +1,7 @@
 import logging
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -13,53 +12,12 @@ from app.models.book_chapter_paragraph import BookChapterParagraph
 from app.models.enums import Level, SchoolYear
 from app.models.subject import Subject as SubjectModel
 
+from .types import BookDetailResponse, ChapterResponse, ParagraphResponse
+from .util import _subject_exists
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/books", tags=["books"])
-
-
-async def _subject_exists(session: AsyncSession, subject_id: str) -> bool:
-    result = await session.execute(
-        select(SubjectModel.id).where(SubjectModel.id == subject_id)
-    )
-    return result.scalars().first() is not None
-
-
-# ── Response schemas ──────────────────────────────────────────────────────────
-
-
-class ParagraphResponse(BaseModel):
-    id: str
-    index: int
-    title: str
-    synopsis: str | None
-
-
-class ChapterResponse(BaseModel):
-    id: str
-    index: int
-    title: str
-    paragraphs: List[ParagraphResponse]
-
-
-class BookDetailResponse(BaseModel):
-    id: str
-    slug: str
-    title: str
-    subject_id: str | None
-    subject_slug: str | None
-    subject_name: str | None
-    subject_category: str | None
-    method_id: str | None
-    edition: str | None
-    school_years: list
-    levels: list
-    cover_url: str | None
-    url: str
-    chapters: List[ChapterResponse]
-
-
-# ── Routes ────────────────────────────────────────────────────────────────────
 
 
 @router.get("/", response_model=list[Book])
