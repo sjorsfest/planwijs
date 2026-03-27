@@ -44,7 +44,7 @@ class GeneratedTimeSectionItem(BaseModel):
     end_min: int
     activity: str
     description: str
-    activity_type: Literal["introduction", "instruction", "activity", "discussion", "assessment", "closure"]
+    activity_type: Literal["introduction", "repetition", "instruction", "activity", "discussion", "assessment", "closure"]
 
 
 class GeneratedLessonPlan(BaseModel):
@@ -219,7 +219,8 @@ naar concrete, uitvoerbare lesprogramma's - een per les.
 - Gebruik altijd een introductie (activering voorkennis, lesdoelen) aan het begin
   en een afsluiting (reflectie, samenvatting, blik op volgende les) aan het einde.
 - Afwisseling is essentieel: beperk aaneengesloten instructiemomenten tot maximaal 15 minuten.
-- Kies activity_type uit: introduction, instruction, activity, discussion, assessment, closure.
+- Gebruik repetition voor een korte herhaling van relevante stof uit een vorige les.
+- Kies activity_type uit: introduction, repetition, instruction, activity, discussion, assessment, closure.
 
 ## Differentiatie per niveau
 - Kijk bij elke les naar zowel niveau als leerjaar.

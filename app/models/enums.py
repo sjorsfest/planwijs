@@ -76,3 +76,8 @@ class LesplanStatus(str, Enum):
     GENERATING_LESSONS = "generating_lessons"
     COMPLETED = "completed"
     FAILED = "failed"
+
+
+class LessonPreparationStatus(str, Enum):
+    PENDING = "pending"
+    DONE = "done"

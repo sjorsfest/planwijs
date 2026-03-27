@@ -3,7 +3,7 @@ import json
 import logging
 import traceback
 from collections.abc import AsyncGenerator
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -20,13 +20,14 @@ from app.agents.lesplan_agent import (
     stream_overview,
     stream_revision,
 )
+from app.agents.preparation_agent import PreparationContext, generate_preparation_todos
 from app.database import SessionLocal, get_session, run_read_with_retry
 from app.models.book import Book
 from app.models.book_chapter import BookChapter
 from app.models.book_chapter_paragraph import BookChapterParagraph
 from app.models.classroom import Class
 from app.models.enums import LesplanStatus
-from app.models.lesplan import LesplanFeedbackMessage, LesplanOverview, LesplanRequest, LessonPlan
+from app.models.lesplan import LesplanFeedbackMessage, LesplanOverview, LesplanRequest, LessonPlan, LessonPreparationTodo
 from app.models.method import Method
 from app.models.subject import Subject as SubjectModel
 from app.models.user import User
@@ -64,9 +65,20 @@ class TimeSectionResponse(BaseModel):
     activity_type: str
 
 
+class LessonPreparationTodoResponse(BaseModel):
+    id: str
+    title: str
+    description: str
+    why: str
+    status: str
+    due_date: Optional[date]
+    created_at: datetime
+
+
 class LessonPlanResponse(BaseModel):
     id: str
     lesson_number: int
+    planned_date: Optional[date]
     title: str
     learning_objectives: list[str]
     time_sections: list[TimeSectionResponse]
@@ -74,6 +86,7 @@ class LessonPlanResponse(BaseModel):
     covered_paragraph_ids: list[str]
     teacher_notes: str
     created_at: datetime
+    preparation_todos: list[LessonPreparationTodoResponse]
 
 
 class LessonOutlineItemResponse(BaseModel):
@@ -86,7 +99,7 @@ class LessonOutlineItemResponse(BaseModel):
 class LesplanOverviewResponse(BaseModel):
     id: str
     title: str
-    learning_goals: str
+    learning_goals: list[str]
     key_knowledge: list[str]
     recommended_approach: str
     learning_progression: str
@@ -111,6 +124,50 @@ class LesplanResponse(BaseModel):
 
 
 _SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+
+
+def _normalize_learning_goals(value: Any) -> list[str]:
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return []
+
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError:
+            parsed = None
+
+        if isinstance(parsed, list):
+            return [str(item).strip() for item in parsed if str(item).strip()]
+
+        lines = []
+        for line in value.splitlines():
+            line = line.strip()
+            if line.startswith("- "):
+                line = line[2:].strip()
+            numbered_prefix, separator, remainder = line.partition(" ")
+            if (
+                separator
+                and len(numbered_prefix) > 1
+                and numbered_prefix[-1] in {".", ")"}
+                and numbered_prefix[:-1].isdigit()
+            ):
+                line = remainder.strip()
+            if line:
+                lines.append(line)
+
+        if lines:
+            return lines
+        return [text]
+
+    if value is None:
+        return []
+
+    text = str(value).strip()
+    return [text] if text else []
 
 
 async def _build_context(session: AsyncSession, req: LesplanRequest) -> LesplanContext:
@@ -208,19 +265,19 @@ async def _fetch_overview_response(
     )
     lessons = lessons_result.scalars().all()
 
-    return LesplanOverviewResponse(
-        id=overview.id,
-        title=overview.title,
-        learning_goals=overview.learning_goals,
-        key_knowledge=overview.key_knowledge,
-        recommended_approach=overview.recommended_approach,
-        learning_progression=overview.learning_progression,
-        lesson_outline=[LessonOutlineItemResponse(**item) for item in overview.lesson_outline if isinstance(item, dict)],
-        didactic_approach=overview.didactic_approach,
-        lessons=[
+    lesson_responses = []
+    for lesson in lessons:
+        todos_result = await session.execute(
+            select(LessonPreparationTodo)
+            .where(LessonPreparationTodo.lesson_plan_id == lesson.id)
+            .order_by(LessonPreparationTodo.created_at.asc())  # type: ignore[union-attr]
+        )
+        todos = todos_result.scalars().all()
+        lesson_responses.append(
             LessonPlanResponse(
                 id=lesson.id,
                 lesson_number=lesson.lesson_number,
+                planned_date=lesson.planned_date,
                 title=lesson.title,
                 learning_objectives=lesson.learning_objectives,
                 time_sections=[TimeSectionResponse(**item) for item in lesson.time_sections if isinstance(item, dict)],
@@ -228,9 +285,31 @@ async def _fetch_overview_response(
                 covered_paragraph_ids=lesson.covered_paragraph_ids,
                 teacher_notes=lesson.teacher_notes,
                 created_at=lesson.created_at,
+                preparation_todos=[
+                    LessonPreparationTodoResponse(
+                        id=todo.id,
+                        title=todo.title,
+                        description=todo.description,
+                        why=todo.why,
+                        status=todo.status.value,
+                        due_date=todo.due_date,
+                        created_at=todo.created_at,
+                    )
+                    for todo in todos
+                ],
             )
-            for lesson in lessons
-        ],
+        )
+
+    return LesplanOverviewResponse(
+        id=overview.id,
+        title=overview.title,
+        learning_goals=_normalize_learning_goals(overview.learning_goals),
+        key_knowledge=overview.key_knowledge,
+        recommended_approach=overview.recommended_approach,
+        learning_progression=overview.learning_progression,
+        lesson_outline=[LessonOutlineItemResponse(**item) for item in overview.lesson_outline if isinstance(item, dict)],
+        didactic_approach=overview.didactic_approach,
+        lessons=lesson_responses,
     )
 
 
@@ -261,7 +340,7 @@ async def _persist_overview(
         overview = LesplanOverview(
             request_id=request_id,
             title=data["title"],
-            learning_goals=data["learning_goals"],
+            learning_goals=_normalize_learning_goals(data["learning_goals"]),
             key_knowledge=data["key_knowledge"],
             recommended_approach=data["recommended_approach"],
             learning_progression=data["learning_progression"],
@@ -271,7 +350,7 @@ async def _persist_overview(
         session.add(overview)
     else:
         overview.title = data["title"]
-        overview.learning_goals = data["learning_goals"]
+        overview.learning_goals = _normalize_learning_goals(data["learning_goals"])
         overview.key_knowledge = data["key_knowledge"]
         overview.recommended_approach = data["recommended_approach"]
         overview.learning_progression = data["learning_progression"]
@@ -283,7 +362,7 @@ async def _persist_overview(
 def _overview_payload_from_row(overview: LesplanOverview) -> dict[str, Any]:
     return {
         "title": overview.title,
-        "learning_goals": overview.learning_goals,
+        "learning_goals": _normalize_learning_goals(overview.learning_goals),
         "key_knowledge": overview.key_knowledge,
         "recommended_approach": overview.recommended_approach,
         "learning_progression": overview.learning_progression,
@@ -311,7 +390,7 @@ async def _run_lessons_generation(request_id: str) -> None:
             ctx = await _build_context(session, req)
             approved_overview = GeneratedLesplanOverview(
                 title=overview.title,
-                learning_goals=overview.learning_goals,
+                learning_goals=_normalize_learning_goals(overview.learning_goals),
                 key_knowledge=overview.key_knowledge,
                 recommended_approach=overview.recommended_approach,
                 learning_progression=overview.learning_progression,
@@ -320,28 +399,58 @@ async def _run_lessons_generation(request_id: str) -> None:
             )
             generated_lessons = await generate_lessons(ctx, approved_overview)
 
+            saved_lesson_plans: list[tuple[LessonPlan, Any]] = []
             for lesson in generated_lessons:
                 covered_ids = [
                     req.selected_paragraph_ids[idx]
                     for idx in lesson.covered_paragraph_indices
                     if 0 <= idx < len(req.selected_paragraph_ids)
                 ]
-                session.add(
-                    LessonPlan(
-                        overview_id=overview.id,
-                        lesson_number=lesson.lesson_number,
-                        title=lesson.title,
-                        learning_objectives=lesson.learning_objectives,
-                        time_sections=[section.model_dump(mode="json") for section in lesson.time_sections],
-                        required_materials=lesson.required_materials,
-                        covered_paragraph_ids=covered_ids,
-                        teacher_notes=lesson.teacher_notes,
-                    )
+                lesson_plan = LessonPlan(
+                    overview_id=overview.id,
+                    lesson_number=lesson.lesson_number,
+                    title=lesson.title,
+                    learning_objectives=lesson.learning_objectives,
+                    time_sections=[section.model_dump(mode="json") for section in lesson.time_sections],
+                    required_materials=lesson.required_materials,
+                    covered_paragraph_ids=covered_ids,
+                    teacher_notes=lesson.teacher_notes,
                 )
+                session.add(lesson_plan)
+                saved_lesson_plans.append((lesson_plan, lesson))
 
             req.status = LesplanStatus.COMPLETED
             await session.commit()
             logger.info("Lesson generation completed for request %s", request_id)
+
+            for lesson_plan, generated_lesson in saved_lesson_plans:
+                try:
+                    prep_ctx = PreparationContext(
+                        lesson_number=generated_lesson.lesson_number,
+                        title=generated_lesson.title,
+                        learning_objectives=generated_lesson.learning_objectives,
+                        time_sections=[s.model_dump(mode="json") for s in generated_lesson.time_sections],
+                        required_materials=generated_lesson.required_materials,
+                        teacher_notes=generated_lesson.teacher_notes,
+                    )
+                    todos = await generate_preparation_todos(prep_ctx)
+                    for todo in todos:
+                        session.add(
+                            LessonPreparationTodo(
+                                lesson_plan_id=lesson_plan.id,
+                                title=todo.title,
+                                description=todo.description,
+                                why=todo.why,
+                            )
+                        )
+                except Exception:
+                    logger.error(
+                        "Preparation todo generation failed for lesson %s:\n%s",
+                        lesson_plan.id,
+                        traceback.format_exc(),
+                    )
+            await session.commit()
+            logger.info("Preparation todos generated for request %s", request_id)
         except Exception:
             logger.error(
                 "Lesson generation failed for request %s:\n%s",
@@ -563,7 +672,7 @@ async def stream_revision_endpoint(request_id: str) -> StreamingResponse:
 
                 current_overview = GeneratedLesplanOverview(
                     title=overview.title,
-                    learning_goals=overview.learning_goals,
+                    learning_goals=_normalize_learning_goals(overview.learning_goals),
                     key_knowledge=overview.key_knowledge,
                     recommended_approach=overview.recommended_approach,
                     learning_progression=overview.learning_progression,
