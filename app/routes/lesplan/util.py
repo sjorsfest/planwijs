@@ -294,7 +294,7 @@ def _overview_payload_from_row(overview: LesplanOverview) -> dict[str, Any]:
 
 
 def _sse(event: str, data: Any) -> str:
-    return f"event: {event}\\ndata: {json.dumps(data, ensure_ascii=False)}\\n\\n"
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
 async def _run_lessons_generation(request_id: str) -> None:
