@@ -860,7 +860,7 @@ async def _run_lessons_generation(request_id: str) -> None:
             )
             generated_lessons = await generate_lessons(ctx, approved_overview)
 
-            saved_lesson_plans: list[tuple[LessonPlan, Any]] = []
+            total_todos = 0
             for lesson in generated_lessons:
                 covered_ids = [
                     req.selected_paragraph_ids[idx]
@@ -878,21 +878,17 @@ async def _run_lessons_generation(request_id: str) -> None:
                     teacher_notes=lesson.teacher_notes,
                 )
                 session.add(lesson_plan)
-                saved_lesson_plans.append((lesson_plan, lesson))
+                await session.flush()  # assign lesson_plan.id
 
-            req.status = LesplanStatus.COMPLETED
-            await session.commit()
-            logger.info("Lesson generation completed for request %s", request_id)
-
-            for lesson_plan, generated_lesson in saved_lesson_plans:
+                # Generate preparation todos immediately for this lesson
                 try:
                     prep_ctx = PreparationContext(
-                        lesson_number=generated_lesson.lesson_number,
-                        title=generated_lesson.title,
-                        learning_objectives=generated_lesson.learning_objectives,
-                        time_sections=[s.model_dump(mode="json") for s in generated_lesson.time_sections],
-                        required_materials=generated_lesson.required_materials,
-                        teacher_notes=generated_lesson.teacher_notes,
+                        lesson_number=lesson.lesson_number,
+                        title=lesson.title,
+                        learning_objectives=lesson.learning_objectives,
+                        time_sections=[s.model_dump(mode="json") for s in lesson.time_sections],
+                        required_materials=lesson.required_materials,
+                        teacher_notes=lesson.teacher_notes,
                     )
                     todos = await generate_preparation_todos(prep_ctx)
                     for todo in todos:
@@ -904,14 +900,36 @@ async def _run_lessons_generation(request_id: str) -> None:
                                 why=todo.why,
                             )
                         )
+                    total_todos += len(todos)
+                    logger.info(
+                        "Generated %d preparation todos for lesson %s (%s)",
+                        len(todos),
+                        lesson_plan.id,
+                        lesson.title,
+                    )
                 except Exception:
                     logger.error(
                         "Preparation todo generation failed for lesson %s:\n%s",
                         lesson_plan.id,
                         traceback.format_exc(),
                     )
+
+                # Commit after each lesson + its todos so progress is never lost
+                await session.commit()
+                logger.info(
+                    "Committed lesson %d/%d with todos for request %s",
+                    lesson.lesson_number,
+                    len(generated_lessons),
+                    request_id,
+                )
+
+            req.status = LesplanStatus.COMPLETED
             await session.commit()
-            logger.info("Preparation todos generated for request %s", request_id)
+            logger.info(
+                "All lessons completed: %d todos total for request %s",
+                total_todos,
+                request_id,
+            )
         except Exception:
             logger.error(
                 "Lesson generation failed for request %s:\n%s",

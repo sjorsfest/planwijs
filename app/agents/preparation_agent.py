@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import re
@@ -36,29 +37,50 @@ class PreparationContext:
 
 _SYSTEM_PROMPT = """\
 Je bent een ervaren docent voor het voortgezet onderwijs in Nederland.
-Je analyseert een uitgewerkt lesprogramma en bepaalt welke concrete voorbereidingstaken
-de docent moet uitvoeren vóór de les kan plaatsvinden.
+Je analyseert een uitgewerkt lesprogramma en genereert concrete, specifieke voorbereidingstaken.
 
-## Jouw taak
-- Analyseer het lesprogramma: lesdoelen, tijdsvakken, benodigde materialen en docentnotities.
-- Bepaal welke voorbereidingstaken écht nodig zijn om de les goed te kunnen uitvoeren.
-- Denk aan: materialen zoeken of maken, opdrachten printen of klaarzetten, digitale middelen
-  voorbereiden, een activiteit uitwerken, afbeeldingen zoeken, etc.
-- Genereer alleen taken die concreet en uitvoerbaar zijn. Geen vage algemeenheden.
-- Verplicht: zet "benodigde materialen" actief om naar voorbereidingstaken zodra er iets
-  gemaakt, verzameld, geprint, gekopieerd of digitaal klaargezet moet worden.
-- Concreet:
-  - "opdrachtblad / werkblad / carousel / tijdlijn / quiz / bronblad" => taak om te maken of te verzamelen.
-  - "afbeelding / bron / kaart / video / presentatie / digibord" => taak om materiaal te zoeken en klaar te zetten.
-  - "check / aandachtspunt / zorg dat" in docentnotities => taak om deze voorbereiding vooraf te borgen.
-- Alleen als er aantoonbaar géén voorbereiding nodig is, geef een lege todos-lijst terug.
+## Werkwijze — verplicht
+1. Lees ALLE tijdsvakken (activiteiten) zorgvuldig door. Let op wat de docent en leerlingen
+   concreet doen: welke materialen worden gebruikt, getoond, uitgedeeld of besproken?
+2. Lees de lijst "Benodigde materialen".
+3. Koppel elk materiaal aan de tijdsvakken waarin het wordt gebruikt.
+   Gebruik de beschrijvingen van die tijdsvakken om te bepalen WAT het materiaal precies
+   moet bevatten. Dit is de kern van je taak.
+4. Genereer per materiaal dat voorbereiding vraagt (maken, zoeken, printen, klaarzetten)
+   een todo met SPECIFIEKE inhoud.
+
+## Regels voor de description van elke todo
+- De description moet EXACT beschrijven wat het materiaal moet bevatten of tonen.
+- Haal deze details uit de beschrijvingen van de tijdsvakken.
+- Voorbeelden van wat WEL specifiek genoeg is:
+  - "Zoek afbeeldingen van: het Parthenon, een Grieks amfitheater, de Discuswerper van Myron,
+    een pagina uit de Ilias of Odyssee, en een modern gebouw met Griekse zuilen.
+    Print 5-6 afbeeldingen per groep (4-5 groepen) in kleur op A4-formaat."
+  - "Maak een werkblad met per afbeelding drie vragen: (1) Wat is dit? (2) Wat is typisch
+    Grieks hieraan? (3) Waar zien we dit nog terug in onze tijd? Voeg ruimte toe voor
+    antwoorden en een sectie onderaan voor de groepspresentatie."
+  - "Maak gebeurteniskaartjes met de volgende gebeurtenissen: val van de Berlijnse Muur (1989),
+    Golfoorlog (1990-1991), verdrag van Maastricht (1992), genocide in Rwanda (1994),
+    aanslagen 11 september (2001), toetreding Oost-Europese landen tot EU (2004).
+    Print per duo één set."
+- Voorbeelden van wat NIET specifiek genoeg is (NIET doen):
+  - "Zoek afbeeldingen voor de les" (welke afbeeldingen?!)
+  - "Maak een werkblad" (met welke vragen/inhoud?!)
+  - "Verzamel materiaal" (welk materiaal?!)
 
 ## Uitvoer per taak
-- title: een korte, actieve taakomschrijving (bijv. "Zoek passende afbeeldingen voor de introductie")
-- description: wat er precies gedaan moet worden, met genoeg detail om direct mee aan de slag te gaan
-- why: waarom deze taak nodig is voor het welslagen van de les
+- title: korte actieve taakomschrijving (max 10 woorden)
+- description: WAT er precies gemaakt/gezocht moet worden, inclusief concrete inhoud,
+  aantallen, en format. De docent moet hiermee direct aan de slag kunnen zonder het
+  lesplan opnieuw te lezen.
+- why: waarom deze taak nodig is, gekoppeld aan het specifieke lesmoment.
 
-Schrijf in correct, helder Nederlands.
+## Belangrijk
+- Genereer voor ELK materiaal dat voorbereiding vraagt minimaal één todo.
+- Standaard materialen zoals een schoolboek of schrift hoeven GEEN todo.
+- Als een materiaal meerdere onderdelen bevat (bijv. "foto's en kaartmateriaal"),
+  maak dan aparte todos per onderdeel.
+- Schrijf in correct, helder Nederlands.
 """
 
 
@@ -126,29 +148,57 @@ def _material_needs_preparation(material: str) -> bool:
     return any(keyword in lowered for keyword in _MATERIAL_PREP_KEYWORDS)
 
 
-def _todo_from_material(material: str) -> GeneratedPreparationTodo:
+def _find_related_sections(material: str, sections: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Find time sections that likely use this material based on keyword overlap."""
+    material_words = {w for w in material.lower().split() if len(w) > 3}
+    related: list[dict[str, Any]] = []
+    for section in sections:
+        desc = section.get("description", "").lower()
+        activity = section.get("activity", "").lower()
+        combined = f"{desc} {activity}"
+        if any(word in combined for word in material_words):
+            related.append(section)
+    return related
+
+
+def _build_fallback_description(material: str, related_sections: list[dict[str, Any]]) -> str:
+    """Build a description that includes context from related time sections."""
+    base = f"Bereid voor: '{material}'."
+    if related_sections:
+        section_details = []
+        for s in related_sections:
+            time_range = f"{s.get('start_min', '?')}-{s.get('end_min', '?')} min"
+            desc = s.get("description", "")
+            section_details.append(f"  - [{time_range}] {desc}")
+        context = "\n".join(section_details)
+        base += (
+            f"\n\nDit materiaal wordt gebruikt in de volgende activiteit(en):\n{context}"
+            "\n\nZorg dat het materiaal aansluit bij bovenstaande beschrijving: "
+            "de juiste inhoud, aantallen, en format."
+        )
+    return base
+
+
+def _todo_from_material(material: str, sections: list[dict[str, Any]] | None = None) -> GeneratedPreparationTodo:
+    related = _find_related_sections(material, sections) if sections else []
+    description = _build_fallback_description(material, related)
+
     lowered = material.lower()
     if any(keyword in lowered for keyword in ("opdracht", "werkblad", "quiz", "carrousel", "carousel", "tijdlijn")):
         return GeneratedPreparationTodo(
             title=f"Maak of verzamel: {material}",
-            description=(
-                f"Werk '{material}' inhoudelijk uit en zorg dat het geprint of digitaal klaarstaat "
-                "voor de lesstart."
-            ),
+            description=description,
             why="Leerlingen hebben dit materiaal nodig om de geplande activiteit uit te voeren.",
         )
     if any(keyword in lowered for keyword in ("bron", "afbeeld", "kaart", "video", "presentatie", "slide", "digibord")):
         return GeneratedPreparationTodo(
             title=f"Verzamel lesmateriaal: {material}",
-            description=(
-                f"Zoek '{material}' op, controleer kwaliteit/toegankelijkheid en zet het klaar "
-                "op het juiste lesmoment."
-            ),
+            description=description,
             why="Deze ondersteuning maakt de uitleg en verwerking concreet en uitvoerbaar.",
         )
     return GeneratedPreparationTodo(
         title=f"Zet klaar: {material}",
-        description=f"Controleer dat '{material}' beschikbaar is en leg het vooraf klaar voor de les.",
+        description=description,
         why="Zonder dit materiaal kan de les niet volgens planning worden uitgevoerd.",
     )
 
@@ -170,7 +220,7 @@ def _fallback_todos(ctx: PreparationContext) -> list[GeneratedPreparationTodo]:
             continue
         seen_materials.add(material_key)
         if _material_needs_preparation(material):
-            todos.append(_todo_from_material(material))
+            todos.append(_todo_from_material(material, ctx.time_sections))
 
     notes = _clean_text(ctx.teacher_notes)
     if notes and _needs_note_preparation(notes):
@@ -223,40 +273,71 @@ def _get_preparation_agent() -> Agent[None, GeneratedPreparationTodos]:
 def _build_prompt(ctx: PreparationContext) -> str:
     objectives = "\n".join(f"  - {o}" for o in ctx.learning_objectives)
     materials = (
-        "\n".join(f"  - {m}" for m in ctx.required_materials)
+        "\n".join(f"  {i+1}. {m}" for i, m in enumerate(ctx.required_materials))
         if ctx.required_materials
         else "  (geen)"
     )
     sections = "\n".join(
-        f"  {s['start_min']}-{s['end_min']} min: {s['activity']} "
-        f"({s.get('activity_type', '')}) — {s['description']}"
+        f"  [{s['start_min']}-{s['end_min']} min] {s['activity']} "
+        f"(type: {s.get('activity_type', '')})\n"
+        f"    Beschrijving: {s['description']}"
         for s in ctx.time_sections
     )
+    notes = ctx.teacher_notes.strip() if ctx.teacher_notes else "(geen)"
     return (
-        f"Les {ctx.lesson_number}: {ctx.title}\n\n"
-        f"Lesdoelen:\n{objectives}\n\n"
-        f"Tijdsvakken:\n{sections}\n\n"
-        f"Benodigde materialen:\n{materials}\n\n"
-        f"Docentnotities:\n{ctx.teacher_notes}\n\n"
-        "Instructie voor output:\n"
-        "- Maak een concrete todo voor elk benoemd materiaal dat voorbereiding vraagt "
-        "(maken, verzamelen, printen/kopiëren of digitaal klaarzetten).\n"
-        "- Materialen zoals opdrachtblad, tijdlijn/carrousel, bronnen, afbeeldingen en kaarten "
-        "mogen niet zonder todo blijven.\n"
-        "- Geef alleen een lege lijst als er echt geen voorbereiding nodig is.\n\n"
-        "Genereer de voorbereidingstaken voor deze les."
+        f"# Les {ctx.lesson_number}: {ctx.title}\n\n"
+        f"## Lesdoelen\n{objectives}\n\n"
+        f"## Tijdsvakken (activiteiten)\n{sections}\n\n"
+        f"## Benodigde materialen\n{materials}\n\n"
+        f"## Docentnotities\n{notes}\n\n"
+        "---\n\n"
+        "## Opdracht\n"
+        "Analyseer bovenstaand lesplan en genereer voorbereidingstodos.\n\n"
+        "STAP 1: Ga elk materiaal uit de lijst 'Benodigde materialen' langs.\n"
+        "STAP 2: Zoek in de tijdsvakken (activiteiten) op HOE dat materiaal wordt gebruikt.\n"
+        "STAP 3: Bepaal op basis van de activiteitbeschrijving WAT het materiaal precies\n"
+        "moet bevatten of tonen.\n"
+        "STAP 4: Schrijf een todo met in de description de EXACTE inhoud, aantallen en format.\n\n"
+        "Voorbeeld redenering:\n"
+        '- Materiaal: "Set afbeeldingen (5-6 per groep): Parthenon, theater, beeld"\n'
+        '- Tijdsvak zegt: "Groepjes ontvangen set afbeeldingen (tempel, theater, beeld, boekfragment)"\n'
+        "- Dus de todo description wordt: \"Zoek en print afbeeldingen van: het Parthenon, "
+        "een Grieks amfitheater, de Discuswerper, een fragment uit Homerus' werk, en een modern "
+        "gebouw met Griekse zuilen. Print 5-6 afbeeldingen per groep in kleur op A4.\"\n\n"
+        "Genereer nu de voorbereidingstaken."
     )
+
+
+_AGENT_TIMEOUT_SECONDS = 300
 
 
 async def generate_preparation_todos(ctx: PreparationContext) -> list[GeneratedPreparationTodo]:
     prompt = _build_prompt(ctx)
+    logger.info("Generating preparation todos for lesson %s: %s", ctx.lesson_number, ctx.title)
     generated: list[GeneratedPreparationTodo] = []
     try:
-        result = await _get_preparation_agent().run(prompt)
+        result = await asyncio.wait_for(
+            _get_preparation_agent().run(prompt),
+            timeout=_AGENT_TIMEOUT_SECONDS,
+        )
         generated = _sanitize_generated_todos(result.output.todos)
+        logger.info(
+            "AI agent returned %d todos for lesson %s",
+            len(generated),
+            ctx.lesson_number,
+        )
+    except asyncio.TimeoutError:
+        logger.warning(
+            "Preparation agent timed out after %ds for lesson %s; using fallback.",
+            _AGENT_TIMEOUT_SECONDS,
+            ctx.lesson_number,
+        )
     except Exception:
-        logger.exception("Preparation todo generation failed; using deterministic fallback todos.")
+        logger.exception("Preparation todo generation failed for lesson %s; using fallback.", ctx.lesson_number)
 
     if generated:
         return generated
-    return _fallback_todos(ctx)
+
+    fallback = _fallback_todos(ctx)
+    logger.info("Fallback generated %d todos for lesson %s", len(fallback), ctx.lesson_number)
+    return fallback

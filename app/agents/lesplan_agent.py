@@ -341,6 +341,23 @@ concrete lessen te genereren.
   leerlingen kunnen meestal het meest zelfstandig werken, plannen en kritisch denken.
   Lessen mogen daarom meer diepgang, nuance en evaluatie vragen.
 
+## Tijdsbewustzijn bij het ontwerpen van de lessenserie
+- Houd bij het plannen van elke les rekening met de beschikbare lestijd (lesson_duration_minutes).
+- Elke les heeft vaste tijdkosten: een introductie/activering (3-5 min), een afsluiting (3-5 min),
+  en transitietijd bij elke wisseling van activiteit (2-3 min per wissel).
+  Dit betekent dat de beschikbare tijd voor inhoudelijke activiteiten aanzienlijk minder is dan de totale lesduur.
+- Kies standaard voor eenvoudige maar effectieve werkvormen die weinig organisatie of voorbereiding
+  vragen. Denk aan klassikale instructie, korte verwerkingsopdrachten, denk-deel-bespreek, en
+  gerichte vragen. Deze werkvormen zijn het meest realistisch voor docenten en het effectiefst
+  voor leerlingen.
+- Vermijd organisatie-intensieve activiteiten (werkvormen die veel voorbereiding, materiaal,
+  of ruimte-inrichting vereisen). Docenten hebben het al druk genoeg. Alleen bij zeer lange
+  lessenseries (10+ lessen) mag je overwegen om 1 organisatie-intensieve activiteit toe te voegen,
+  en dan pas richting het einde van de reeks wanneer de stof voldoende behandeld is.
+- Beperk het aantal activiteitswisselingen per les: een wissel kan 1-2 minuten kosten afhankelijk van de groep.
+  Bij korte lessen (≤45 min): maximaal 3-4 tijdsblokken inclusief introductie en afsluiting.
+  Bij standaardlessen (50-60 min): maximaal 4-5 tijdsblokken. Bij langere lessen (>60 min): maximaal 5-6 tijdsblokken.
+
 ## Uitvoer
 - title: een specifieke, inhoudelijke titel voor het gehele lesplan.
 - series_summary: 2-4 zinnen die kort uitleggen waar de reeks over gaat, waarom dit onderwerp relevant is
@@ -462,6 +479,15 @@ Voorbeeld SLECHT:
 - teaching_approach_hint: "Korte activering, daarna uitleg, daarna verwerking."
 
 Geen tijdsblokken of lesfasen op minutenniveau.
+
+## Tijdsbewustzijn
+- Houd in de teaching_approach_hint rekening met de totale lesduur.
+- Kies standaard voor eenvoudige maar effectieve werkvormen die weinig organisatie of voorbereiding
+  vragen. Docenten hebben het al druk genoeg — houd de lessen praktisch uitvoerbaar.
+- Vermijd organisatie-intensieve activiteiten. Alleen bij zeer lange lessenseries (10+ lessen)
+  mag je overwegen om 1 zo'n activiteit toe te voegen, richting het einde van de reeks.
+- Elke activiteitswisseling kost 2-3 minuten. Beperk het aantal wisselingen per les:
+  bij ≤45 min max 3-4 blokken, bij 50-60 min max 4-5 blokken, bij >60 min max 5-6 blokken.
 """
 
 _OVERVIEW_NOTES_SYSTEM_PROMPT = """\
@@ -488,6 +514,25 @@ naar concrete, uitvoerbare lesprogramma's - een per les.
 - Afwisseling is essentieel: beperk aaneengesloten instructiemomenten tot maximaal 15 minuten.
 - Gebruik repetition voor een korte herhaling van relevante stof uit een vorige les.
 - Kies activity_type uit: introduction, repetition, instruction, activity, discussion, assessment, closure.
+
+## Realistisch tijdsbeheer (CRUCIAAL)
+- Elke wisseling van activiteit kost 2-3 minuten in een echte klas (uitleg geven, materiaal pakken,
+  groepjes vormen, stilte krijgen). Reken deze transitietijd mee in de tijdsblokken.
+- Kies standaard voor eenvoudige maar effectieve werkvormen die weinig organisatie of voorbereiding
+  vragen. Denk aan klassikale instructie, korte verwerkingsopdrachten, denk-deel-bespreek, en
+  gerichte vragen. Docenten hebben het al druk genoeg — houd de lessen praktisch uitvoerbaar.
+- Vermijd organisatie-intensieve activiteiten (werkvormen die veel voorbereiding, materiaal,
+  of ruimte-inrichting vereisen). Alleen bij zeer lange lessenseries (10+ lessen) mag je overwegen
+  om 1 zo'n activiteit toe te voegen, en dan pas richting het einde van de reeks.
+- Beperk het totaal aantal tijdsblokken per les:
+  - Lessen van ≤45 minuten: maximaal 4 tijdsblokken (inclusief introductie en afsluiting).
+  - Lessen van 50-60 minuten: maximaal 5 tijdsblokken.
+  - Lessen van >60 minuten: maximaal 6 tijdsblokken.
+- Geef elk tijdsblok voldoende tijd. Een activiteit van minder dan 5 minuten is bijna nooit
+  zinvol (behalve een korte introductie of afsluiting). Als een activiteit minder dan 5 minuten
+  zou duren, voeg het samen met een aangrenzend blok.
+- Wees eerlijk over wat haalbaar is. Het is beter om één activiteit goed uit te voeren dan
+  drie activiteiten gehaast af te werken. Kwaliteit boven kwantiteit.
 
 ## Differentiatie per niveau
 - Kijk bij elke les naar zowel niveau als leerjaar.
@@ -1347,6 +1392,8 @@ def _ensure_series_summary_includes_delivery(
     ctx: LesplanContext,
 ) -> str:
     plain_base = re.sub(r"[*_`#>-]", "", series_summary or "").replace("\n", " ").strip()
+    # Strip any pre-existing "Onderwerp:" prefixes to prevent duplication
+    plain_base = re.sub(r"^(Onderwerp:\s*)+", "", plain_base, flags=re.IGNORECASE).strip()
     plain_progression = re.sub(r"[*_`#>-]", "", learning_progression or "").replace("\n", " ").strip()
     topic = _first_sentence(plain_base) or (
         f"Deze reeks behandelt {ctx.book_subject or 'de kern van dit onderwerp'} over {ctx.num_lessons} lessen."
