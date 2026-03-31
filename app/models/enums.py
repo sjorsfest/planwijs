@@ -68,6 +68,14 @@ class ClassDifficulty(str, Enum):
     RED = "Rood"
 
 
+class ClassSupportChallenge(str, Enum):
+    """Hoeveel ondersteuning of uitdaging de klas nodig heeft."""
+
+    MORE_SUPPORT = "Meer ondersteuning"
+    BALANCED = "Gebalanceerd"
+    MORE_CHALLENGE = "Meer uitdaging"
+
+
 class LesplanStatus(str, Enum):
     PENDING = "pending"
     GENERATING_OVERVIEW = "generating_overview"

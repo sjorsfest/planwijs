@@ -621,6 +621,9 @@ async def _build_context(session: AsyncSession, req: LesplanRequest) -> LesplanC
         school_year=classroom.school_year.value,
         class_size=classroom.size,
         difficulty=classroom.difficulty.value if classroom.difficulty else None,
+        attention_span_minutes=classroom.attention_span_minutes,
+        support_challenge=classroom.support_challenge.value if classroom.support_challenge else None,
+        class_notes=classroom.class_notes,
         num_lessons=req.num_lessons,
         lesson_duration_minutes=req.lesson_duration_minutes,
     )

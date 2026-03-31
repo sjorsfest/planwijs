@@ -1,11 +1,7 @@
-"""Backward-compatible exports for lesplan agents.
-
-Implementation now lives in `app.agents.lesplan`.
-"""
-
 from __future__ import annotations
 
-from app.agents.lesplan import (
+from .pipeline import generate_lessons, stream_overview, stream_revision
+from .types import (
     ApprovalReadiness,
     GeneratedLessonPlan,
     GeneratedLessons,
@@ -20,12 +16,11 @@ from app.agents.lesplan import (
     KnowledgeCoverageItem,
     LesplanContext,
     LessonOutlineItem,
+)
+from .utils import (
     _normalize_learning_goals_for_context,
     _normalize_lesson_outline_for_context,
     _validate_overview_for_context,
-    generate_lessons,
-    stream_overview,
-    stream_revision,
 )
 
 __all__ = [
