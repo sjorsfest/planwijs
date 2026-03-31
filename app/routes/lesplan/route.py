@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from app.agents.lesplan_agent import GeneratedLesplanOverview, LessonOutlineItem, stream_overview, stream_revision
+from app.agents.lesplan_agent import stream_overview, stream_revision
 from app.database import SessionLocal, get_session, run_read_with_retry
 from app.models.book import Book
 from app.models.book_chapter import BookChapter
@@ -33,9 +33,9 @@ from .util import (
     _build_response,
     _fetch_feedback_history,
     _fetch_overview,
+    _generated_overview_from_row,
     _get_lesson_or_404,
     _get_preparation_todo_or_404,
-    _normalize_learning_goals,
     _overview_payload_from_row,
     _persist_overview,
     _run_lessons_generation,
@@ -172,13 +172,27 @@ async def stream_overview_endpoint(request_id: str) -> StreamingResponse:
                 req.status = LesplanStatus.GENERATING_OVERVIEW
                 await session.commit()
                 ctx = await _build_context(session, req)
+                overview_seed_payload = (
+                    _overview_payload_from_row(existing_overview) if existing_overview is not None else {}
+                )
 
             final_payload: dict[str, Any] | None = None
+            rolling_payload: dict[str, Any] = dict(overview_seed_payload)
             yield _sse("status", {"status": LesplanStatus.GENERATING_OVERVIEW.value})
             async for partial_payload, is_final in stream_overview(ctx):
+                if partial_payload:
+                    logger.info("Partial overview payload received: %s", partial_payload)
+                    rolling_payload.update(partial_payload)
                 if is_final:
-                    final_payload = partial_payload
+                    final_payload = rolling_payload
                     continue
+
+                async with SessionLocal() as session:
+                    req = await session.get(LesplanRequest, request_id)
+                    if req is None:
+                        return
+                    await _persist_overview(session, request_id, rolling_payload)
+                    await session.commit()
                 yield _sse("partial", partial_payload)
 
             if final_payload is None:
@@ -252,24 +266,31 @@ async def stream_revision_endpoint(request_id: str) -> StreamingResponse:
                     yield _sse("error", {"message": f"Cannot stream revision from status {req.status.value}"})
                     return
 
-                current_overview = GeneratedLesplanOverview(
-                    title=overview.title,
-                    learning_goals=_normalize_learning_goals(overview.learning_goals),
-                    key_knowledge=overview.key_knowledge,
-                    recommended_approach=overview.recommended_approach,
-                    learning_progression=overview.learning_progression,
-                    lesson_outline=[LessonOutlineItem(**item) for item in overview.lesson_outline if isinstance(item, dict)],
-                    didactic_approach=overview.didactic_approach,
+                current_overview = _generated_overview_from_row(
+                    overview,
+                    num_lessons=req.num_lessons,
+                    paragraph_count=len(req.selected_paragraph_ids),
                 )
+                overview_seed_payload = _overview_payload_from_row(overview)
                 history = await _fetch_feedback_history(session, request_id)
                 ctx = await _build_context(session, req)
 
             final_payload: dict[str, Any] | None = None
+            rolling_overview_payload: dict[str, Any] = dict(overview_seed_payload)
             yield _sse("status", {"status": LesplanStatus.REVISING_OVERVIEW.value})
             async for partial_payload, is_final in stream_revision(ctx, current_overview, history):
                 if is_final:
                     final_payload = partial_payload
                     continue
+
+                if partial_payload:
+                    rolling_overview_payload.update(partial_payload)
+                    async with SessionLocal() as session:
+                        req = await session.get(LesplanRequest, request_id)
+                        if req is None:
+                            return
+                        await _persist_overview(session, request_id, rolling_overview_payload)
+                        await session.commit()
                 yield _sse("partial", partial_payload)
 
             if final_payload is None:

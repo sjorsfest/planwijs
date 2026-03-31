@@ -3,7 +3,7 @@ import unittest
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateTable
 
-from app.models.lesplan import LesplanRequest, LessonPlan
+from app.models.lesplan import LesplanOverview, LesplanRequest, LessonPlan
 
 
 class LesplanJsonbDefaultTests(unittest.TestCase):
@@ -20,4 +20,13 @@ class LesplanJsonbDefaultTests(unittest.TestCase):
         self.assertIn("time_sections JSONB DEFAULT '[]' NOT NULL", ddl)
         self.assertIn("required_materials JSONB DEFAULT '[]' NOT NULL", ddl)
         self.assertIn("covered_paragraph_ids JSONB DEFAULT '[]' NOT NULL", ddl)
+        self.assertNotIn("'''[]''::jsonb'", ddl)
+
+    def test_lesplan_overview_jsonb_defaults_compile_without_double_quoting(self) -> None:
+        ddl = str(CreateTable(LesplanOverview.__table__).compile(dialect=postgresql.dialect()))
+
+        self.assertIn("series_themes JSONB DEFAULT '[]' NOT NULL", ddl)
+        self.assertIn("goal_coverage JSONB DEFAULT '[]' NOT NULL", ddl)
+        self.assertIn("knowledge_coverage JSONB DEFAULT '[]' NOT NULL", ddl)
+        self.assertIn("approval_readiness JSONB DEFAULT '{}' NOT NULL", ddl)
         self.assertNotIn("'''[]''::jsonb'", ddl)

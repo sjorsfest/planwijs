@@ -77,17 +77,48 @@ class LessonOutlineItemResponse(BaseModel):
     lesson_number: int
     subject_focus: str
     description: str
+    teaching_approach_hint: str = ""
     builds_on: str
+    concept_tags: list[str] = Field(default_factory=list)
+    lesson_intention: str = ""
+    end_understanding: str = ""
+    sequence_rationale: str = ""
+    builds_on_lessons: list[int] = Field(default_factory=list)
+    paragraph_indices: list[int] = Field(default_factory=list)
+
+
+class GoalCoverageItemResponse(BaseModel):
+    goal: str
+    lesson_numbers: list[int] = Field(default_factory=list)
+    rationale: str = ""
+
+
+class KnowledgeCoverageItemResponse(BaseModel):
+    knowledge: str
+    lesson_numbers: list[int] = Field(default_factory=list)
+    rationale: str = ""
+
+
+class ApprovalReadinessResponse(BaseModel):
+    ready_for_approval: bool = False
+    rationale: str = ""
+    checklist: list[str] = Field(default_factory=list)
+    open_questions: list[str] = Field(default_factory=list)
 
 
 class LesplanOverviewResponse(BaseModel):
     id: str
     title: str
+    series_summary: str
+    series_themes: list[str]
     learning_goals: list[str]
     key_knowledge: list[str]
     recommended_approach: str
     learning_progression: str
     lesson_outline: list[LessonOutlineItemResponse]
+    goal_coverage: list[GoalCoverageItemResponse]
+    knowledge_coverage: list[KnowledgeCoverageItemResponse]
+    approval_readiness: ApprovalReadinessResponse
     didactic_approach: str
     lessons: list[LessonPlanResponse]
 

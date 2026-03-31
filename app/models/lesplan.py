@@ -38,6 +38,11 @@ class LesplanOverview(BaseModel, table=True):
 
     request_id: str = Field(foreign_key="lesplan_request.id", unique=True, index=True)
     title: str
+    series_summary: str
+    series_themes: List[str] = Field(
+        default_factory=list,
+        sa_column=Column("series_themes", JSONB, nullable=False, server_default="[]"),
+    )
     learning_goals: List[str] = Field(
         default_factory=list,
         sa_column=Column("learning_goals", JSONB, nullable=False, server_default="[]"),
@@ -51,6 +56,18 @@ class LesplanOverview(BaseModel, table=True):
     lesson_outline: List[Any] = Field(
         default_factory=list,
         sa_column=Column("lesson_outline", JSONB, nullable=False, server_default="[]"),
+    )
+    goal_coverage: List[Any] = Field(
+        default_factory=list,
+        sa_column=Column("goal_coverage", JSONB, nullable=False, server_default="[]"),
+    )
+    knowledge_coverage: List[Any] = Field(
+        default_factory=list,
+        sa_column=Column("knowledge_coverage", JSONB, nullable=False, server_default="[]"),
+    )
+    approval_readiness: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column("approval_readiness", JSONB, nullable=False, server_default="{}"),
     )
     didactic_approach: str
 
