@@ -271,8 +271,8 @@ class LesplanContext:
     school_year: str
     class_size: int
     difficulty: str | None
-    attention_span_minutes: int | None
-    support_challenge: str | None
-    class_notes: str | None
     num_lessons: int
     lesson_duration_minutes: int
+    attention_span_minutes: int | None = None
+    support_challenge: str | None = None
+    class_notes: str | None = None

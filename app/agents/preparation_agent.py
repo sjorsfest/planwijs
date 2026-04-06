@@ -262,7 +262,7 @@ def _get_preparation_agent() -> Agent[None, GeneratedPreparationTodos]:
         _preparation_agent = cast(
             Agent[None, GeneratedPreparationTodos],
             Agent(
-                "openrouter:xiaomi/mimo-v2-pro",
+                "openrouter:google/gemini-3.1-pro-preview",
                 output_type=GeneratedPreparationTodos,
                 system_prompt=_SYSTEM_PROMPT,
             ),
