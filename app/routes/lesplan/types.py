@@ -14,15 +14,14 @@ class CreateLesplanRequest(BaseModel):
     lesson_duration_minutes: int = Field(ge=1)
 
 
+class FeedbackItem(BaseModel):
+    field_name: str = Field(min_length=1)
+    specific_part: str = ""
+    user_feedback: str = Field(min_length=1)
+
+
 class FeedbackRequest(BaseModel):
-    message: str = Field(min_length=1)
-
-
-class FeedbackMessageResponse(BaseModel):
-    id: str
-    role: str
-    content: str
-    created_at: datetime
+    items: list[FeedbackItem] = Field(min_length=1)
 
 
 class TimeSectionResponse(BaseModel):
@@ -57,6 +56,10 @@ class UpdateLessonPreparationTodoRequest(BaseModel):
     why: str | None = Field(default=None, min_length=1)
     status: LessonPreparationStatus | None = None
     due_date: date | None = None
+
+
+class UpdateLessonPlannedDateRequest(BaseModel):
+    planned_date: date | None = None
 
 
 class LessonPlanResponse(BaseModel):
@@ -135,4 +138,3 @@ class LesplanResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     overview: LesplanOverviewResponse | None
-    feedback_messages: list[FeedbackMessageResponse]

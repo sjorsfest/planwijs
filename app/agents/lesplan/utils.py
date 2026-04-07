@@ -24,24 +24,44 @@ def _build_context_block(ctx: LesplanContext) -> str:
         "Rood": "Rood (uitdagend, intensieve begeleiding nodig)",
     }
     difficulty_str = difficulty_descriptions.get(ctx.difficulty, ctx.difficulty) if ctx.difficulty else "niet opgegeven"
+    
     paragraph_lines = "\n".join(
-        f"{i}. {paragraph['title']}" + (f" - {paragraph['synopsis']}" if paragraph.get("synopsis") else "")
+        f"Index {i}: {paragraph['title']}" + (f" - {paragraph['synopsis']}" if paragraph.get("synopsis") else "")
         for i, paragraph in enumerate(ctx.paragraphs)
     )
-    attention_str = f"{ctx.attention_span_minutes} minuten" if ctx.attention_span_minutes else "niet opgegeven"
-    support_str = ctx.support_challenge or "niet opgegeven"
-    notes_line = f"Docentnotities over de klas: {ctx.class_notes}\n" if ctx.class_notes else ""
-    return (
-        f"Boek: {ctx.book_title} ({ctx.book_subject}) - Methode: {ctx.method_name}\n"
-        f"Niveau: {ctx.level}, Leerjaar: {ctx.school_year}, "
-        f"Klasgrootte: {ctx.class_size} leerlingen\n"
-        f"Moeilijkheidsgraad klas: {difficulty_str}\n"
-        f"Aandachtsspanne: {attention_str}\n"
-        f"Ondersteuning/uitdaging: {support_str}\n"
-        f"{notes_line}"
-        f"Aantal lessen: {ctx.num_lessons}, Lesduur: {ctx.lesson_duration_minutes} minuten\n\n"
-        f"Geselecteerde paragrafen:\n{paragraph_lines}"
-    )
+    
+    attention_str = f"{ctx.attention_span_minutes} minuten" if ctx.attention_span_minutes else "niet afgebakend"
+    support_str = ctx.support_challenge or "Geen specifieke bijzonderheden"
+    notes_line = f"- Specifieke docentnotities: {ctx.class_notes}\n  (Deze observaties en wensen bepalen mede de insteek van de werkvormen en de tips in de teacher_notes)\n" if ctx.class_notes else ""
+    
+    return f"""\
+                ### 1. BASISGEGEVENS & BRONMATERIAAL
+                - Boek: {ctx.book_title} ({ctx.book_subject}) - Methode: {ctx.method_name}
+                (Dit fungeert als de basis voor de terminologie, structuur en benodigde voorkennis binnen de lessen)
+
+                ### 2. KLASPROFIEL & DIDACTISCHE KADERS
+                - Niveau & Leerjaar: {ctx.level}, Leerjaar {ctx.school_year}
+                (Dit bepaalt het abstractieniveau van de theorie, het verwachte tempo en hoeveel zelfstandigheid er van de leerlingen verwacht mag worden)
+                - Klasgrootte: {ctx.class_size} leerlingen
+                (Dit beïnvloedt de organisatie van de les: grote klassen vereisen simpele, strak geregisseerde werkvormen; kleinere klassen bieden ruimte voor meer open interactie)
+                - Moeilijkheidsgraad klassendynamiek: {difficulty_str}
+                (Wanneer dit oranje of rood is, vraagt dit om strakkere docentregie, zeer duidelijke overgangen tussen activiteiten en afgebakende taken)
+                - Aandachtsspanne: {attention_str}
+                (Dit geldt als de maximale grens voor aaneengesloten instructiemomenten of passief luisteren, waarna een actieve verwerking nodig is)
+                - Ondersteuning & Uitdaging: {support_str}
+                (Deze behoeften vereisen specifieke differentiatiesuggesties en praktische tips in de teacher_notes van de lesplannen)
+                - Extra instructies van de docent: {ctx.class_notes}
+                (Dit zijn instructies van de docent die extra rekening mee gehouden moeten worden bij het opstellen van de lesplannen, dit is erg belangrijk!!)
+                ### 3. STRUCTURELE RANDVOORWAARDEN
+                - Aantal lessen: {ctx.num_lessons}
+                (De geselecteerde theorie moet logisch over dit aantal lessen verspreid worden)
+                - Lesduur: {ctx.lesson_duration_minutes} minuten
+                (De tijdsvakken per les moeten in totaal exact, zonder gaten of overlap, op dit aantal minuten uitkomen)
+
+                ### 4. TE BEHANDELEN STOF (Geselecteerde paragrafen)
+                Koppel deze paragrafen aan de specifieke lessen. Gebruik het aangegeven Index-nummer (0, 1, etc.) als referentie voor het veld 'covered_paragraph_indices'.
+                {paragraph_lines}
+        """
 
 
 def _extract_builds_on_numbers(text: str) -> list[int]:

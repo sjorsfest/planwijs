@@ -30,7 +30,6 @@ class LesplanRequest(BaseModel, table=True):
     )
 
     overview: Optional["LesplanOverview"] = Relationship(back_populates="request")
-    feedback_messages: List["LesplanFeedbackMessage"] = Relationship(back_populates="request")
 
 
 class LesplanOverview(BaseModel, table=True):
@@ -129,11 +128,3 @@ class LessonPreparationTodo(BaseModel, table=True):
     lesson_plan: Optional["LessonPlan"] = Relationship(back_populates="preparation_todos")
 
 
-class LesplanFeedbackMessage(BaseModel, table=True):
-    __tablename__ = "lesplan_feedback_message"
-
-    request_id: str = Field(foreign_key="lesplan_request.id", index=True)
-    role: str  # "teacher" | "assistant"
-    content: str
-
-    request: Optional["LesplanRequest"] = Relationship(back_populates="feedback_messages")

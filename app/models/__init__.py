@@ -7,12 +7,12 @@ from app.models.subject import Subject as SubjectModel
 from app.models.book_chapter import BookChapter
 from app.models.book_chapter_paragraph import BookChapterParagraph
 from app.models.classroom import Class
-from app.models.lesplan import LesplanRequest, LesplanOverview, LessonPlan, LesplanFeedbackMessage
+from app.models.lesplan import LesplanRequest, LesplanOverview, LessonPlan
 
 __all__ = [
     "User", "EventBase", "EventCreate", "Event",
     "Subject", "SubjectCategory", "Level", "SchoolYear", "ClassDifficulty", "LesplanStatus",
     "Method", "Book", "BookChapter", "BookChapterParagraph", "Class",
     "SubjectModel",
-    "LesplanRequest", "LesplanOverview", "LessonPlan", "LesplanFeedbackMessage",
+    "LesplanRequest", "LesplanOverview", "LessonPlan",
 ]

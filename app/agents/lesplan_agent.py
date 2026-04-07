@@ -12,7 +12,6 @@ from app.agents.lesplan import (
     GeneratedLesplanOverview,
     GeneratedOverviewIdentity,
     GeneratedOverviewLearningGoals,
-    GeneratedOverviewRevision,
     GeneratedOverviewSequence,
     GeneratedOverviewTeacherNotes,
     GeneratedTimeSectionItem,
@@ -25,7 +24,6 @@ from app.agents.lesplan import (
     _validate_overview_for_context,
     generate_lessons,
     stream_overview,
-    stream_revision,
 )
 
 __all__ = [
@@ -35,7 +33,6 @@ __all__ = [
     "GeneratedLesplanOverview",
     "GeneratedOverviewIdentity",
     "GeneratedOverviewLearningGoals",
-    "GeneratedOverviewRevision",
     "GeneratedOverviewSequence",
     "GeneratedOverviewTeacherNotes",
     "GeneratedTimeSectionItem",
@@ -48,5 +45,4 @@ __all__ = [
     "_validate_overview_for_context",
     "generate_lessons",
     "stream_overview",
-    "stream_revision",
 ]

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .pipeline import generate_lessons, stream_overview, stream_revision
+from .pipeline import generate_lessons, generate_overview, stream_overview
 from .types import (
     ApprovalReadiness,
     GeneratedLessonPlan,
@@ -8,7 +8,6 @@ from .types import (
     GeneratedLesplanOverview,
     GeneratedOverviewIdentity,
     GeneratedOverviewLearningGoals,
-    GeneratedOverviewRevision,
     GeneratedOverviewSequence,
     GeneratedOverviewTeacherNotes,
     GeneratedTimeSectionItem,
@@ -30,7 +29,6 @@ __all__ = [
     "GeneratedLesplanOverview",
     "GeneratedOverviewIdentity",
     "GeneratedOverviewLearningGoals",
-    "GeneratedOverviewRevision",
     "GeneratedOverviewSequence",
     "GeneratedOverviewTeacherNotes",
     "GeneratedTimeSectionItem",
@@ -42,6 +40,6 @@ __all__ = [
     "_normalize_lesson_outline_for_context",
     "_validate_overview_for_context",
     "generate_lessons",
+    "generate_overview",
     "stream_overview",
-    "stream_revision",
 ]

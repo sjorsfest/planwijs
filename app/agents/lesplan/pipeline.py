@@ -20,7 +20,6 @@ from .utils import (
     _build_identity_prompt,
     _build_learning_goals_prompt,
     _build_lessons_prompt,
-    _build_revision_assistant_message,
     _build_sequence_prompt,
     _build_teacher_notes_prompt,
     _compose_overview_from_parts,
@@ -37,17 +36,9 @@ from .utils import (
 async def _generate_learning_goals(
     ctx: LesplanContext,
     identity: GeneratedOverviewIdentity,
-    *,
-    current_overview: GeneratedLesplanOverview | None = None,
-    history: list[dict[str, Any]] | None = None,
 ) -> list[str]:
     draft_result = await get_overview_learning_goals_agent().run(
-        _build_learning_goals_prompt(
-            ctx,
-            identity,
-            current_overview=current_overview,
-            history=history,
-        )
+        _build_learning_goals_prompt(ctx, identity)
     )
     draft_goals = _unique_non_empty(draft_result.output.learning_goals, limit=6)
     quality_feedback = _learning_goal_feedback_lines(draft_goals, ctx=ctx)
@@ -56,8 +47,6 @@ async def _generate_learning_goals(
             _build_learning_goals_prompt(
                 ctx,
                 identity,
-                current_overview=current_overview,
-                history=history,
                 draft_goals=draft_goals,
                 quality_feedback=quality_feedback,
             )
@@ -66,20 +55,13 @@ async def _generate_learning_goals(
         if len(_learning_goal_feedback_lines(refined_goals, ctx=ctx)) <= len(quality_feedback):
             draft_goals = refined_goals
 
-    return _normalize_learning_goals_for_context(
-        draft_goals,
-        ctx=ctx,
-    )
+    return _normalize_learning_goals_for_context(draft_goals, ctx=ctx)
 
 
-async def _stream_overview_pipeline(
-    ctx: LesplanContext,
-    *,
-    current_overview: GeneratedLesplanOverview | None = None,
-    history: list[dict[str, Any]] | None = None,
-) -> AsyncGenerator[tuple[dict[str, Any], bool], None]:
+async def stream_overview(ctx: LesplanContext) -> AsyncGenerator[tuple[dict[str, Any], bool], None]:
+    """Stream the overview pipeline, yielding partial results after each step."""
     identity_result = await get_overview_identity_agent().run(
-        _build_identity_prompt(ctx, current_overview=current_overview, history=history)
+        _build_identity_prompt(ctx)
     )
     identity = identity_result.output
     identity_partial = {
@@ -89,23 +71,13 @@ async def _stream_overview_pipeline(
     }
     yield identity_partial, False
 
-    learning_goals = await _generate_learning_goals(
-        ctx,
-        identity,
-        current_overview=current_overview,
-        history=history,
-    )
-    goals_partial = {"learning_goals": learning_goals}
-    yield goals_partial, False
+    identity_data = GeneratedOverviewIdentity(**identity_partial)
+
+    learning_goals = await _generate_learning_goals(ctx, identity_data)
+    yield {"learning_goals": learning_goals}, False
 
     sequence_result = await get_overview_sequence_agent().run(
-        _build_sequence_prompt(
-            ctx,
-            identity,
-            learning_goals,
-            current_overview=current_overview,
-            history=history,
-        )
+        _build_sequence_prompt(ctx, identity_data, learning_goals)
     )
     sequence = sequence_result.output
     sequence_knowledge = _unique_non_empty(sequence.key_knowledge, limit=10)
@@ -114,24 +86,16 @@ async def _stream_overview_pipeline(
         key_knowledge=sequence_knowledge,
         lesson_outline=sequence_outline,
     )
-    sequence_partial = {
+    yield {
         "key_knowledge": sequence_knowledge,
         "lesson_outline": [item.model_dump(mode="json") for item in sequence_outline],
-    }
-    yield sequence_partial, False
+    }, False
 
     teacher_result = await get_overview_teacher_notes_agent().run(
-        _build_teacher_notes_prompt(
-            ctx,
-            identity,
-            sequence_struct,
-            learning_goals,
-            current_overview=current_overview,
-            history=history,
-        )
+        _build_teacher_notes_prompt(ctx, identity_data, sequence_struct, learning_goals)
     )
     teacher_notes = teacher_result.output
-    readiness_partial = _normalize_approval_readiness(
+    readiness = _normalize_approval_readiness(
         teacher_notes.approval_readiness,
         has_goals=bool(learning_goals),
         has_knowledge=bool(sequence_knowledge),
@@ -141,66 +105,102 @@ async def _stream_overview_pipeline(
         "recommended_approach": teacher_notes.recommended_approach.strip(),
         "learning_progression": teacher_notes.learning_progression.strip(),
         "didactic_approach": teacher_notes.didactic_approach.strip(),
-        "approval_readiness": readiness_partial.model_dump(mode="json"),
+        "approval_readiness": readiness.model_dump(mode="json"),
     }
-    identity_partial["series_summary"] = _ensure_series_summary_includes_delivery(
+    series_summary = _ensure_series_summary_includes_delivery(
         series_summary=identity_partial["series_summary"],
         learning_progression=teacher_partial["learning_progression"],
         recommended_approach=teacher_partial["recommended_approach"],
         didactic_approach=teacher_partial["didactic_approach"],
         ctx=ctx,
     )
-    teacher_partial["series_summary"] = identity_partial["series_summary"]
+    teacher_partial["series_summary"] = series_summary
     yield teacher_partial, False
 
-    composed_overview = _compose_overview_from_parts(
+    identity_data = GeneratedOverviewIdentity(
+        title=identity_partial["title"],
+        series_summary=series_summary,
+        series_themes=identity_partial["series_themes"],
+    )
+    composed = _compose_overview_from_parts(
         ctx,
-        GeneratedOverviewIdentity(
-            title=identity_partial["title"],
-            series_summary=identity_partial["series_summary"],
-            series_themes=identity_partial["series_themes"],
-        ),
+        identity_data,
         sequence_struct,
         learning_goals,
         GeneratedOverviewTeacherNotes(
             recommended_approach=teacher_partial["recommended_approach"],
             learning_progression=teacher_partial["learning_progression"],
             didactic_approach=teacher_partial["didactic_approach"],
-            approval_readiness=readiness_partial,
+            approval_readiness=readiness,
         ),
     )
-    _validate_overview_for_context(composed_overview, ctx)
-    yield composed_overview.model_dump(mode="json"), True
+    _validate_overview_for_context(composed, ctx)
+    yield composed.model_dump(mode="json"), True
 
 
-async def stream_overview(ctx: LesplanContext) -> AsyncGenerator[tuple[dict[str, Any], bool], None]:
-    async for payload, is_final in _stream_overview_pipeline(ctx):
-        yield payload, is_final
+async def generate_overview(ctx: LesplanContext) -> GeneratedLesplanOverview:
+    """Generate a full overview by running the 4-step pipeline (non-streaming)."""
+    identity_result = await get_overview_identity_agent().run(
+        _build_identity_prompt(ctx)
+    )
+    identity = identity_result.output
+    identity_data = GeneratedOverviewIdentity(
+        title=identity.title.strip(),
+        series_summary=identity.series_summary.strip(),
+        series_themes=_unique_non_empty(identity.series_themes, limit=6),
+    )
 
+    learning_goals = await _generate_learning_goals(ctx, identity_data)
 
-async def stream_revision(
-    ctx: LesplanContext,
-    overview: GeneratedLesplanOverview,
-    history: list[dict[str, Any]],
-) -> AsyncGenerator[tuple[dict[str, Any], bool], None]:
-    final_overview_payload: dict[str, Any] | None = None
-    async for payload, is_final in _stream_overview_pipeline(
+    sequence_result = await get_overview_sequence_agent().run(
+        _build_sequence_prompt(ctx, identity_data, learning_goals)
+    )
+    sequence = sequence_result.output
+    sequence_knowledge = _unique_non_empty(sequence.key_knowledge, limit=10)
+    sequence_outline = _normalize_lesson_outline_for_context(sequence.lesson_outline, ctx, sequence_knowledge)
+    sequence_struct = GeneratedOverviewSequence(
+        key_knowledge=sequence_knowledge,
+        lesson_outline=sequence_outline,
+    )
+
+    teacher_result = await get_overview_teacher_notes_agent().run(
+        _build_teacher_notes_prompt(ctx, identity_data, sequence_struct, learning_goals)
+    )
+    teacher_notes = teacher_result.output
+    readiness = _normalize_approval_readiness(
+        teacher_notes.approval_readiness,
+        has_goals=bool(learning_goals),
+        has_knowledge=bool(sequence_knowledge),
+        has_outline=bool(sequence_outline),
+    )
+
+    series_summary = _ensure_series_summary_includes_delivery(
+        series_summary=identity_data.series_summary,
+        learning_progression=teacher_notes.learning_progression.strip(),
+        recommended_approach=teacher_notes.recommended_approach.strip(),
+        didactic_approach=teacher_notes.didactic_approach.strip(),
+        ctx=ctx,
+    )
+    identity_data = GeneratedOverviewIdentity(
+        title=identity_data.title,
+        series_summary=series_summary,
+        series_themes=identity_data.series_themes,
+    )
+
+    overview = _compose_overview_from_parts(
         ctx,
-        current_overview=overview,
-        history=history,
-    ):
-        if is_final:
-            final_overview_payload = payload
-            continue
-        yield payload, False
-
-    if final_overview_payload is None:
-        raise RuntimeError("Revision pipeline returned no final overview")
-
-    yield {
-        "overview": final_overview_payload,
-        "assistant_message": _build_revision_assistant_message(history),
-    }, True
+        identity_data,
+        sequence_struct,
+        learning_goals,
+        GeneratedOverviewTeacherNotes(
+            recommended_approach=teacher_notes.recommended_approach.strip(),
+            learning_progression=teacher_notes.learning_progression.strip(),
+            didactic_approach=teacher_notes.didactic_approach.strip(),
+            approval_readiness=readiness,
+        ),
+    )
+    _validate_overview_for_context(overview, ctx)
+    return overview
 
 
 async def generate_lessons(

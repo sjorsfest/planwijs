@@ -17,19 +17,21 @@ from app.agents.lesplan_agent import (
     LessonOutlineItem,
     generate_lessons,
 )
+from app.agents.lesplan.feedback_agent import apply_feedback
+from app.agents.lesplan.pipeline import generate_overview
 from app.agents.preparation_agent import PreparationContext, generate_preparation_todos
 from app.database import SessionLocal
 from app.models.book import Book
 from app.models.book_chapter_paragraph import BookChapterParagraph
 from app.models.classroom import Class
 from app.models.enums import LesplanStatus
-from app.models.lesplan import LesplanFeedbackMessage, LesplanOverview, LesplanRequest, LessonPlan, LessonPreparationTodo
+from app.models.lesplan import LesplanOverview, LesplanRequest, LessonPlan, LessonPreparationTodo
 from app.models.method import Method
 from app.models.subject import Subject as SubjectModel
 
 from .types import (
     ApprovalReadinessResponse,
-    FeedbackMessageResponse,
+    FeedbackItem,
     GoalCoverageItemResponse,
     KnowledgeCoverageItemResponse,
     LesplanOverviewResponse,
@@ -43,6 +45,10 @@ from .types import (
 logger = logging.getLogger(__name__)
 
 _SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+
+
+def _sse(event: str, data: Any) -> str:
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
 def _todo_response(todo: LessonPreparationTodo) -> LessonPreparationTodoResponse:
@@ -577,6 +583,28 @@ def _normalize_overview_payload(
     }
 
 
+async def _lesson_response(session: AsyncSession, lesson: LessonPlan) -> LessonPlanResponse:
+    todos_result = await session.execute(
+        select(LessonPreparationTodo)
+        .where(LessonPreparationTodo.lesson_plan_id == lesson.id)
+        .order_by(LessonPreparationTodo.created_at.asc())  # type: ignore[union-attr]
+    )
+    todos = todos_result.scalars().all()
+    return LessonPlanResponse(
+        id=lesson.id,
+        lesson_number=lesson.lesson_number,
+        planned_date=lesson.planned_date,
+        title=lesson.title,
+        learning_objectives=lesson.learning_objectives,
+        time_sections=[TimeSectionResponse(**item) for item in lesson.time_sections if isinstance(item, dict)],
+        required_materials=lesson.required_materials,
+        covered_paragraph_ids=lesson.covered_paragraph_ids,
+        teacher_notes=lesson.teacher_notes,
+        created_at=lesson.created_at,
+        preparation_todos=[_todo_response(todo) for todo in todos],
+    )
+
+
 async def _build_context(session: AsyncSession, req: LesplanRequest) -> LesplanContext:
     classroom = await session.get(Class, req.class_id)
     book = await session.get(Book, req.book_id)
@@ -629,32 +657,6 @@ async def _build_context(session: AsyncSession, req: LesplanRequest) -> LesplanC
     )
 
 
-async def _fetch_feedback_history(session: AsyncSession, request_id: str) -> list[dict[str, str]]:
-    result = await session.execute(
-        select(LesplanFeedbackMessage)
-        .where(LesplanFeedbackMessage.request_id == request_id)
-        .order_by(LesplanFeedbackMessage.created_at.asc())  # type: ignore[union-attr]
-    )
-    return [{"role": msg.role, "content": msg.content} for msg in result.scalars().all()]
-
-
-async def _fetch_feedback_responses(session: AsyncSession, request_id: str) -> list[FeedbackMessageResponse]:
-    result = await session.execute(
-        select(LesplanFeedbackMessage)
-        .where(LesplanFeedbackMessage.request_id == request_id)
-        .order_by(LesplanFeedbackMessage.created_at.asc())  # type: ignore[union-attr]
-    )
-    return [
-        FeedbackMessageResponse(
-            id=msg.id,
-            role=msg.role,
-            content=msg.content,
-            created_at=msg.created_at,
-        )
-        for msg in result.scalars().all()
-    ]
-
-
 async def _fetch_overview(session: AsyncSession, request_id: str) -> Optional[LesplanOverview]:
     result = await session.execute(select(LesplanOverview).where(LesplanOverview.request_id == request_id))
     return result.scalars().first()
@@ -681,29 +683,7 @@ async def _fetch_overview_response(
         paragraph_count=len(request.selected_paragraph_ids) if request else None,
     )
 
-    lesson_responses = []
-    for lesson in lessons:
-        todos_result = await session.execute(
-            select(LessonPreparationTodo)
-            .where(LessonPreparationTodo.lesson_plan_id == lesson.id)
-            .order_by(LessonPreparationTodo.created_at.asc())  # type: ignore[union-attr]
-        )
-        todos = todos_result.scalars().all()
-        lesson_responses.append(
-            LessonPlanResponse(
-                id=lesson.id,
-                lesson_number=lesson.lesson_number,
-                planned_date=lesson.planned_date,
-                title=lesson.title,
-                learning_objectives=lesson.learning_objectives,
-                time_sections=[TimeSectionResponse(**item) for item in lesson.time_sections if isinstance(item, dict)],
-                required_materials=lesson.required_materials,
-                covered_paragraph_ids=lesson.covered_paragraph_ids,
-                teacher_notes=lesson.teacher_notes,
-                created_at=lesson.created_at,
-                preparation_todos=[_todo_response(todo) for todo in todos],
-            )
-        )
+    lesson_responses = [await _lesson_response(session, lesson) for lesson in lessons]
 
     return LesplanOverviewResponse(
         id=overview.id,
@@ -739,7 +719,6 @@ async def _build_response(session: AsyncSession, req: LesplanRequest) -> Lesplan
         created_at=req.created_at,
         updated_at=req.updated_at,
         overview=await _fetch_overview_response(session, req.id),
-        feedback_messages=await _fetch_feedback_responses(session, req.id),
     )
 
 
@@ -839,8 +818,59 @@ def _generated_overview_from_row(
     )
 
 
-def _sse(event: str, data: Any) -> str:
-    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+async def _generate_and_persist_overview(
+    session: AsyncSession,
+    req: LesplanRequest,
+) -> None:
+    """Generate the initial overview and persist it."""
+    ctx = await _build_context(session, req)
+    overview = await generate_overview(ctx)
+    await _persist_overview(session, req.id, overview.model_dump(mode="json"))
+    req.status = LesplanStatus.OVERVIEW_READY
+    await session.commit()
+    await session.refresh(req)
+    logger.info("Overview generated for lesplan %s", req.id)
+
+
+async def _submit_feedback(
+    session: AsyncSession,
+    req: LesplanRequest,
+    feedback_items: list[FeedbackItem],
+) -> None:
+    """Apply structured feedback to the overview using the feedback agent."""
+    overview = await _fetch_overview(session, req.id)
+    if overview is None:
+        raise HTTPException(status_code=404, detail="Overview not found")
+
+    ctx = await _build_context(session, req)
+    current_overview = _generated_overview_from_row(
+        overview,
+        num_lessons=req.num_lessons,
+        paragraph_count=len(req.selected_paragraph_ids),
+    )
+
+    items_dicts = [
+        {
+            "field_name": item.field_name,
+            "specific_part": item.specific_part,
+            "user_feedback": item.user_feedback,
+        }
+        for item in feedback_items
+    ]
+
+    updated_fields = await apply_feedback(ctx, current_overview, items_dicts)
+
+    # Merge updated fields into the existing overview payload
+    current_payload = _raw_overview_payload_from_row(overview)
+    current_payload.update(updated_fields)
+
+    # Re-persist with normalization
+    await _persist_overview(session, req.id, current_payload)
+    req.status = LesplanStatus.OVERVIEW_READY
+    await session.commit()
+    await session.refresh(req)
+
+    logger.info("Feedback applied for lesplan %s, updated fields: %s", req.id, list(updated_fields.keys()))
 
 
 async def _run_lessons_generation(request_id: str) -> None:
