@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     secret_key: str
     google_client_id: str
     google_client_secret: str
-    google_redirect_uri: str = "http://localhost:8000/auth/google/callback"
+    google_redirect_uri: str 
     oauth_state_secret: str
     openrouter_api_key: str
 
