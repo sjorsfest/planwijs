@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.agents.lesplan_agent import stream_overview
+from app.auth import get_current_user
 from app.database import SessionLocal, get_session, run_read_with_retry
 from app.models.book import Book
 from app.models.book_chapter import BookChapter
@@ -42,14 +43,23 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/lesplan", tags=["lesplan"])
 
 
+async def _get_user_lesplan_or_404(
+    session: AsyncSession, request_id: str, user_id: str
+) -> LesplanRequest:
+    req = await session.get(LesplanRequest, request_id)
+    if req is None or req.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Lesplan not found")
+    return req
+
+
 @router.post("/", response_model=LesplanResponse, status_code=201)
 async def create_lesplan(
     data: CreateLesplanRequest,
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> LesplanResponse:
-    if await session.get(User, data.user_id) is None:
-        raise HTTPException(status_code=422, detail="Invalid user_id")
-    if await session.get(Class, data.class_id) is None:
+    classroom = await session.get(Class, data.class_id)
+    if classroom is None or classroom.user_id != current_user.id:
         raise HTTPException(status_code=422, detail="Invalid class_id")
     if await session.get(Book, data.book_id) is None:
         raise HTTPException(status_code=422, detail="Invalid book_id")
@@ -69,7 +79,7 @@ async def create_lesplan(
         )
 
     req = LesplanRequest(
-        user_id=data.user_id,
+        user_id=current_user.id,
         class_id=data.class_id,
         book_id=data.book_id,
         selected_paragraph_ids=data.selected_paragraph_ids,
@@ -88,11 +98,10 @@ async def create_lesplan(
 @router.post("/{request_id}/generate-overview", response_model=LesplanResponse)
 async def generate_overview_endpoint(
     request_id: str,
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> LesplanResponse:
-    req = await session.get(LesplanRequest, request_id)
-    if req is None:
-        raise HTTPException(status_code=404, detail="Lesplan not found")
+    req = await _get_user_lesplan_or_404(session, request_id, current_user.id)
     if req.status != LesplanStatus.PENDING:
         raise HTTPException(
             status_code=409,
@@ -114,12 +123,17 @@ async def generate_overview_endpoint(
 
 
 @router.get("/{request_id}/stream-overview")
-async def stream_overview_endpoint(request_id: str) -> StreamingResponse:
+async def stream_overview_endpoint(
+    request_id: str,
+    current_user: User = Depends(get_current_user),
+) -> StreamingResponse:
+    user_id = current_user.id
+
     async def event_stream() -> AsyncGenerator[str, None]:
         try:
             async with SessionLocal() as session:
                 req = await session.get(LesplanRequest, request_id)
-                if req is None:
+                if req is None or req.user_id != user_id:
                     yield _sse("error", {"message": "Lesplan not found"})
                     return
 
@@ -210,12 +224,10 @@ async def stream_overview_endpoint(request_id: str) -> StreamingResponse:
 async def submit_feedback(
     request_id: str,
     data: FeedbackRequest,
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> LesplanResponse:
-    print(data)
-    req = await session.get(LesplanRequest, request_id)
-    if req is None:
-        raise HTTPException(status_code=404, detail="Lesplan not found")
+    req = await _get_user_lesplan_or_404(session, request_id, current_user.id)
     if req.status != LesplanStatus.OVERVIEW_READY:
         raise HTTPException(
             status_code=409,
@@ -230,11 +242,10 @@ async def submit_feedback(
 @router.post("/{request_id}/approve", response_model=LesplanResponse)
 async def approve_lesplan(
     request_id: str,
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> LesplanResponse:
-    req = await session.get(LesplanRequest, request_id)
-    if req is None:
-        raise HTTPException(status_code=404, detail="Lesplan not found")
+    req = await _get_user_lesplan_or_404(session, request_id, current_user.id)
     if req.status != LesplanStatus.OVERVIEW_READY:
         raise HTTPException(
             status_code=409,
@@ -251,10 +262,15 @@ async def approve_lesplan(
 
 
 @router.get("/{request_id}", response_model=LesplanResponse)
-async def get_lesplan(request_id: str) -> LesplanResponse:
+async def get_lesplan(
+    request_id: str,
+    current_user: User = Depends(get_current_user),
+) -> LesplanResponse:
+    user_id = current_user.id
+
     async def operation(session: AsyncSession) -> LesplanResponse:
         req = await session.get(LesplanRequest, request_id)
-        if req is None:
+        if req is None or req.user_id != user_id:
             raise HTTPException(status_code=404, detail="Lesplan not found")
         return await _build_response(session, req)
 
@@ -262,11 +278,15 @@ async def get_lesplan(request_id: str) -> LesplanResponse:
 
 
 @router.get("/", response_model=list[LesplanResponse])
-async def list_lespannen(user_id: Optional[str] = Query(default=None)) -> list[LesplanResponse]:
+async def list_lespannen(current_user: User = Depends(get_current_user)) -> list[LesplanResponse]:
+    user_id = current_user.id
+
     async def operation(session: AsyncSession) -> list[LesplanResponse]:
-        stmt = select(LesplanRequest).order_by(LesplanRequest.created_at.desc())  # type: ignore[union-attr]
-        if user_id is not None:
-            stmt = stmt.where(LesplanRequest.user_id == user_id)
+        stmt = (
+            select(LesplanRequest)
+            .where(LesplanRequest.user_id == user_id)
+            .order_by(LesplanRequest.created_at.desc())  # type: ignore[union-attr]
+        )
         result = await session.execute(stmt)
         return [await _build_response(session, req) for req in result.scalars().all()]
 

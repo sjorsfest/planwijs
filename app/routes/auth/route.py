@@ -103,6 +103,6 @@ async def google_callback(
     else:
         logger.info("Existing user logged in: id=%s email=%s", user.id, email)
 
-    token = _create_access_token(str(user.id))
+    token = _create_access_token(str(user.id), email=user.email, name=user.name)
     logger.debug("Issued access token for user id=%s", user.id)
     return RedirectResponse(_build_redirect_url(redirect_uri, {"access_token": token}))

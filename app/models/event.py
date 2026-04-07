@@ -1,5 +1,7 @@
 from datetime import date
-from sqlmodel import SQLModel
+
+from sqlmodel import Field, SQLModel
+
 from app.models.base import BaseModel
 
 
@@ -14,4 +16,4 @@ class EventCreate(EventBase):
 
 
 class Event(EventBase, BaseModel, table=True):
-    pass
+    user_id: str = Field(foreign_key="user.id", index=True)

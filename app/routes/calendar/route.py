@@ -1,12 +1,13 @@
 import logging
 from datetime import date
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
+from app.auth import get_current_user
 from app.database import run_read_with_retry
 from app.models.lesplan import (
     LesplanOverview,
@@ -14,6 +15,7 @@ from app.models.lesplan import (
     LessonPlan,
     LessonPreparationTodo,
 )
+from app.models.user import User
 from app.routes.calendar.types import (
     CalendarLessonItem,
     CalendarResponse,
@@ -27,10 +29,12 @@ router = APIRouter(prefix="/calendar", tags=["calendar"])
 
 @router.get("/", response_model=CalendarResponse)
 async def get_calendar(
-    user_id: str = Query(...),
     start_date: date = Query(...),
     end_date: date = Query(...),
+    current_user: User = Depends(get_current_user),
 ) -> CalendarResponse:
+    user_id = current_user.id
+
     async def operation(session: AsyncSession) -> CalendarResponse:
         # Fetch lessons with planned_date in range
         lesson_result = await session.execute(

@@ -5,9 +5,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from app.auth import get_current_user
 from app.database import get_session, run_read_with_retry
 from app.models.classroom import Class
 from app.models.enums import ClassDifficulty, Level, SchoolYear, Subject
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -16,16 +18,16 @@ router = APIRouter(prefix="/classes", tags=["classes"])
 
 @router.get("/", response_model=list[Class])
 async def list_classes(
-    user_id: Optional[str] = Query(default=None),
+    current_user: User = Depends(get_current_user),
     subject: Optional[Subject] = Query(default=None),
     level: Optional[Level] = Query(default=None),
     school_year: Optional[SchoolYear] = Query(default=None),
     difficulty: Optional[ClassDifficulty] = Query(default=None),
 ):
+    user_id = current_user.id
+
     async def operation(session: AsyncSession) -> list[Class]:
-        stmt = select(Class).order_by(Class.created_at.desc())
-        if user_id is not None:
-            stmt = stmt.where(Class.user_id == user_id)
+        stmt = select(Class).where(Class.user_id == user_id).order_by(Class.created_at.desc())
         if subject is not None:
             stmt = stmt.where(Class.subject == subject)
         if level is not None:
@@ -37,28 +39,33 @@ async def list_classes(
 
         result = await session.execute(stmt)
         classes = result.scalars().all()
-        logger.debug("Listed %d classes", len(classes))
+        logger.debug("Listed %d classes for user %s", len(classes), user_id)
         return classes
 
     return await run_read_with_retry(operation)
 
 
 @router.get("/{class_id}", response_model=Class)
-async def get_class(class_id: str):
+async def get_class(class_id: str, current_user: User = Depends(get_current_user)):
+    user_id = current_user.id
+
     async def operation(session: AsyncSession) -> Class:
         classroom = await session.get(Class, class_id)
-        if not classroom:
-            logger.warning("Class not found: id=%s", class_id)
+        if not classroom or classroom.user_id != user_id:
             raise HTTPException(status_code=404, detail="Class not found")
-        logger.debug("Fetched class: id=%s", class_id)
         return classroom
 
     return await run_read_with_retry(operation)
 
 
 @router.post("/", response_model=Class, status_code=201)
-async def create_class(data: Class, session: AsyncSession = Depends(get_session)):
+async def create_class(
+    data: Class,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
     classroom = Class.model_validate(data)
+    classroom.user_id = current_user.id
     session.add(classroom)
     await session.commit()
     await session.refresh(classroom)
@@ -67,13 +74,17 @@ async def create_class(data: Class, session: AsyncSession = Depends(get_session)
 
 
 @router.patch("/{class_id}", response_model=Class)
-async def update_class(class_id: str, data: Class, session: AsyncSession = Depends(get_session)):
+async def update_class(
+    class_id: str,
+    data: Class,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
     classroom = await session.get(Class, class_id)
-    if not classroom:
-        logger.warning("Update failed, class not found: id=%s", class_id)
+    if not classroom or classroom.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Class not found")
 
-    update = data.model_dump(exclude_unset=True, exclude={"id"})
+    update = data.model_dump(exclude_unset=True, exclude={"id", "user_id"})
     classroom.sqlmodel_update(update)
     await session.commit()
     await session.refresh(classroom)
@@ -82,10 +93,13 @@ async def update_class(class_id: str, data: Class, session: AsyncSession = Depen
 
 
 @router.delete("/{class_id}", status_code=204)
-async def delete_class(class_id: str, session: AsyncSession = Depends(get_session)):
+async def delete_class(
+    class_id: str,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
     classroom = await session.get(Class, class_id)
-    if not classroom:
-        logger.warning("Delete failed, class not found: id=%s", class_id)
+    if not classroom or classroom.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Class not found")
 
     await session.delete(classroom)

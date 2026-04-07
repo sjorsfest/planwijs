@@ -6,7 +6,6 @@ from app.models.enums import LesplanStatus, LessonPreparationStatus
 
 
 class CreateLesplanRequest(BaseModel):
-    user_id: str
     class_id: str
     book_id: str
     selected_paragraph_ids: list[str] = Field(min_length=1)

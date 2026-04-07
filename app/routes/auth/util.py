@@ -15,9 +15,13 @@ ACCESS_TOKEN_EXPIRE_DAYS = 7
 STATE_TTL_SECONDS = 600
 
 
-def _create_access_token(user_id: str) -> str:
+def _create_access_token(user_id: str, *, email: str = "", name: str = "") -> str:
     expire = datetime.now(timezone.utc) + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
-    return jwt.encode({"sub": user_id, "exp": expire}, settings.secret_key, algorithm=ALGORITHM)
+    return jwt.encode(
+        {"sub": user_id, "email": email, "name": name, "exp": expire},
+        settings.secret_key,
+        algorithm=ALGORITHM,
+    )
 
 
 def _b64url_encode(data: bytes) -> str:
