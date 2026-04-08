@@ -16,7 +16,7 @@ APP_HOST="${APP_HOST:-127.0.0.1}"
 APP_PORT="${APP_PORT:-8030}"  # Incremented port for the new service
 HEALTH_PATH="${HEALTH_PATH:-/health}"
 LOCAL_HEALTH_URL="${LOCAL_HEALTH_URL:-http://$APP_HOST:$APP_PORT$HEALTH_PATH}"
-PUBLIC_HEALTH_URL="${PUBLIC_HEALTH_URL:-https://leslab.yourdomain.com/health}"
+PUBLIC_HEALTH_URL="${PUBLIC_HEALTH_URL:-https://api.leslab.net/health}"
 
 SYNC_FROZEN="${SYNC_FROZEN:-1}"
 SKIP_MIGRATIONS="${SKIP_MIGRATIONS:-0}"
