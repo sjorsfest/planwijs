@@ -4,8 +4,9 @@ import re
 import traceback
 from typing import Any, Optional
 
-from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.exceptions import NotFoundError
 from sqlmodel import select
 
 from app.agents.lesplan_agent import (
@@ -66,14 +67,14 @@ def _todo_response(todo: LessonPreparationTodo) -> LessonPreparationTodoResponse
 async def _get_lesson_or_404(session: AsyncSession, lesson_id: str) -> LessonPlan:
     lesson = await session.get(LessonPlan, lesson_id)
     if lesson is None:
-        raise HTTPException(status_code=404, detail="Lesson not found")
+        raise NotFoundError("Lesson not found")
     return lesson
 
 
 async def _get_preparation_todo_or_404(session: AsyncSession, todo_id: str) -> LessonPreparationTodo:
     todo = await session.get(LessonPreparationTodo, todo_id)
     if todo is None:
-        raise HTTPException(status_code=404, detail="Preparation todo not found")
+        raise NotFoundError("Preparation todo not found")
     return todo
 
 
@@ -729,7 +730,7 @@ async def _persist_overview(
 ) -> LesplanOverview:
     request = await session.get(LesplanRequest, request_id)
     if request is None:
-        raise HTTPException(status_code=404, detail="Lesplan not found")
+        raise NotFoundError("Lesplan not found")
     normalized = _normalize_overview_payload(
         data,
         num_lessons=request.num_lessons,
@@ -840,7 +841,7 @@ async def _submit_feedback(
     """Apply structured feedback to the overview using the feedback agent."""
     overview = await _fetch_overview(session, req.id)
     if overview is None:
-        raise HTTPException(status_code=404, detail="Overview not found")
+        raise NotFoundError("Overview not found")
 
     ctx = await _build_context(session, req)
     current_overview = _generated_overview_from_row(

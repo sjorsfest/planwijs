@@ -1,11 +1,12 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.auth import get_current_user
 from app.database import get_session, run_read_with_retry
+from app.exceptions import NotFoundError
 from app.models.lesplan import LesplanOverview, LesplanRequest, LessonPlan, LessonPreparationTodo
 from app.models.user import User
 
@@ -32,10 +33,10 @@ async def _verify_lesson_ownership(session: AsyncSession, lesson_id: str, user_i
     lesson = await _get_lesson_or_404(session, lesson_id)
     overview = await session.get(LesplanOverview, lesson.overview_id)
     if overview is None:
-        raise HTTPException(status_code=404, detail="Lesson not found")
+        raise NotFoundError("Lesson not found")
     request = await session.get(LesplanRequest, overview.request_id)
     if request is None or request.user_id != user_id:
-        raise HTTPException(status_code=404, detail="Lesson not found")
+        raise NotFoundError("Lesson not found")
     return lesson
 
 
@@ -43,13 +44,13 @@ async def _verify_todo_ownership(session: AsyncSession, todo_id: str, user_id: s
     todo = await _get_preparation_todo_or_404(session, todo_id)
     lesson = await session.get(LessonPlan, todo.lesson_plan_id)
     if lesson is None:
-        raise HTTPException(status_code=404, detail="Preparation todo not found")
+        raise NotFoundError("Preparation todo not found")
     overview = await session.get(LesplanOverview, lesson.overview_id)
     if overview is None:
-        raise HTTPException(status_code=404, detail="Preparation todo not found")
+        raise NotFoundError("Preparation todo not found")
     request = await session.get(LesplanRequest, overview.request_id)
     if request is None or request.user_id != user_id:
-        raise HTTPException(status_code=404, detail="Preparation todo not found")
+        raise NotFoundError("Preparation todo not found")
     return todo
 
 

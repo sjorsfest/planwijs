@@ -1,5 +1,5 @@
 start:
-	@fastapi dev main.py
+	@fastapi dev app/main.py
 
 
 migrate-create:

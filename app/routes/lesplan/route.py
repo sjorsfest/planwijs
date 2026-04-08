@@ -2,9 +2,9 @@ import asyncio
 import logging
 import traceback
 from collections.abc import AsyncGenerator
-from typing import Any, Optional
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -12,6 +12,7 @@ from sqlmodel import select
 from app.agents.lesplan_agent import stream_overview
 from app.auth import get_current_user
 from app.database import SessionLocal, get_session, run_read_with_retry
+from app.exceptions import ConflictError, NotFoundError, ValidationError
 from app.models.book import Book
 from app.models.book_chapter import BookChapter
 from app.models.book_chapter_paragraph import BookChapterParagraph
@@ -48,7 +49,7 @@ async def _get_user_lesplan_or_404(
 ) -> LesplanRequest:
     req = await session.get(LesplanRequest, request_id)
     if req is None or req.user_id != user_id:
-        raise HTTPException(status_code=404, detail="Lesplan not found")
+        raise NotFoundError("Lesplan not found")
     return req
 
 
@@ -60,9 +61,9 @@ async def create_lesplan(
 ) -> LesplanResponse:
     classroom = await session.get(Class, data.class_id)
     if classroom is None or classroom.user_id != current_user.id:
-        raise HTTPException(status_code=422, detail="Invalid class_id")
+        raise ValidationError("Invalid class_id")
     if await session.get(Book, data.book_id) is None:
-        raise HTTPException(status_code=422, detail="Invalid book_id")
+        raise ValidationError("Invalid book_id")
 
     chapter_ids = select(BookChapter.id).where(BookChapter.book_id == data.book_id)
     paragraph_results = await session.execute(
@@ -73,9 +74,8 @@ async def create_lesplan(
     found_ids = set(paragraph_results.scalars().all())
     missing = [paragraph_id for paragraph_id in data.selected_paragraph_ids if paragraph_id not in found_ids]
     if missing:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Paragraph IDs do not belong to this book or do not exist: {missing}",
+        raise ValidationError(
+            f"Paragraph IDs do not belong to this book or do not exist: {missing}"
         )
 
     req = LesplanRequest(
@@ -103,9 +103,8 @@ async def generate_overview_endpoint(
 ) -> LesplanResponse:
     req = await _get_user_lesplan_or_404(session, request_id, current_user.id)
     if req.status != LesplanStatus.PENDING:
-        raise HTTPException(
-            status_code=409,
-            detail=f"Overview can only be generated from PENDING status (current: {req.status.value})",
+        raise ConflictError(
+            f"Overview can only be generated from PENDING status (current: {req.status.value})"
         )
 
     req.status = LesplanStatus.GENERATING_OVERVIEW
@@ -117,7 +116,7 @@ async def generate_overview_endpoint(
         logger.exception("Overview generation failed for %s", request_id)
         req.status = LesplanStatus.FAILED
         await session.commit()
-        raise HTTPException(status_code=500, detail="Overview generation failed")
+        raise
 
     return await _build_response(session, req)
 
@@ -229,9 +228,8 @@ async def submit_feedback(
 ) -> LesplanResponse:
     req = await _get_user_lesplan_or_404(session, request_id, current_user.id)
     if req.status != LesplanStatus.OVERVIEW_READY:
-        raise HTTPException(
-            status_code=409,
-            detail=f"Feedback can only be given when the overview is ready (current status: {req.status.value})",
+        raise ConflictError(
+            f"Feedback can only be given when the overview is ready (current status: {req.status.value})"
         )
 
     await _submit_feedback(session, req, data.items)
@@ -247,9 +245,8 @@ async def approve_lesplan(
 ) -> LesplanResponse:
     req = await _get_user_lesplan_or_404(session, request_id, current_user.id)
     if req.status != LesplanStatus.OVERVIEW_READY:
-        raise HTTPException(
-            status_code=409,
-            detail=f"Lesplan is not awaiting approval (current status: {req.status.value})",
+        raise ConflictError(
+            f"Lesplan is not awaiting approval (current status: {req.status.value})"
         )
 
     req.status = LesplanStatus.GENERATING_LESSONS
@@ -271,7 +268,7 @@ async def get_lesplan(
     async def operation(session: AsyncSession) -> LesplanResponse:
         req = await session.get(LesplanRequest, request_id)
         if req is None or req.user_id != user_id:
-            raise HTTPException(status_code=404, detail="Lesplan not found")
+            raise NotFoundError("Lesplan not found")
         return await _build_response(session, req)
 
     return await run_read_with_retry(operation)

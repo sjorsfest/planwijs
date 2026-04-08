@@ -2,13 +2,14 @@ import logging
 from urllib.parse import urlencode, urlparse
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.config import settings
 from app.database import get_session
+from app.exceptions import ValidationError
 from app.models import User
 
 from .util import _build_redirect_url, _create_access_token, _decode_state, _encode_state
@@ -23,7 +24,7 @@ async def login_with_google(redirect_uri: str = Query(..., min_length=1)):
     parsed = urlparse(redirect_uri)
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         logger.warning("Invalid redirect_uri in /google/start: %s", redirect_uri)
-        raise HTTPException(status_code=400, detail="Invalid redirect_uri")
+        raise ValidationError("Invalid redirect_uri")
 
     logger.info("Starting Google OAuth flow, redirect_uri=%s", redirect_uri)
     state = _encode_state(redirect_uri)
@@ -46,13 +47,13 @@ async def google_callback(
 ):
     if state is None:
         logger.warning("OAuth callback received without state parameter")
-        raise HTTPException(status_code=400, detail="Missing state")
+        raise ValidationError("Missing state")
 
     try:
         redirect_uri = _decode_state(state)
     except ValueError as exc:
         logger.warning("OAuth state validation failed: %s", exc)
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise ValidationError(str(exc))
 
     if error:
         logger.warning("OAuth provider returned error: %s", error)

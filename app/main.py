@@ -3,13 +3,16 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth import get_current_user
-from app.database import dispose_engine, check_db_health
+from app.config import settings
+from app.database import check_db_health, dispose_engine
 from app.logging_config import configure_logging
-from app.routes import auth, users, events, methods, books, classes, subjects, lesplan, calendar
+from app.middleware import RequestContextMiddleware, register_error_handlers
+from app.routes import auth, books, calendar, classes, events, lesplan, methods, subjects, users
 
-configure_logging()
+configure_logging(debug=settings.debug)
 logger = logging.getLogger(__name__)
 
 
@@ -21,6 +24,24 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 
 app = FastAPI(lifespan=lifespan)
 
+# --- Middleware (outermost first) ---
+
+# Request ID + timing (raw ASGI — safe for streaming / SSE)
+app.add_middleware(RequestContextMiddleware)  # type: ignore[arg-type]
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,  # type: ignore[arg-type]
+    allow_origins=settings.allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# --- Error handlers ---
+register_error_handlers(app)
+
+# --- Routers ---
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(events.router)
@@ -32,8 +53,7 @@ app.include_router(lesplan.router)
 app.include_router(lesplan.preparation_todo_router)
 app.include_router(calendar.router)
 
-logger.info("Application started")
-
+logger.info("Application started", extra={"environment": settings.environment})
 
 
 @app.get("/health")
