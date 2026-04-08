@@ -23,7 +23,7 @@ async def list_subjects(
         if category is not None:
             stmt = stmt.where(Subject.category == category)
         result = await session.execute(stmt)
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     return await run_read_with_retry(operation)
 

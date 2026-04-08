@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI
 
 from app.auth import get_current_user
-from app.database import dispose_engine
+from app.database import dispose_engine, check_db_health
 from app.logging_config import configure_logging
 from app.routes import auth, users, events, methods, books, classes, subjects, lesplan, calendar
 
@@ -33,3 +33,14 @@ app.include_router(lesplan.preparation_todo_router)
 app.include_router(calendar.router)
 
 logger.info("Application started")
+
+
+
+@app.get("/health")
+async def health() -> dict[str, str]:
+    """Health check endpoint that verifies database connectivity."""
+    try:
+        await check_db_health()
+    except Exception:
+        return {"status": "unhealthy", "database": "unreachable"}
+    return {"status": "healthy", "database": "connected"}

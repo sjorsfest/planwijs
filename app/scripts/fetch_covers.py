@@ -155,7 +155,7 @@ async def run(dry_run: bool = False, limit: int | None = None) -> None:
             result2 = await session.execute(select(Book).where(Book.id == book.id))
             b = result2.scalars().first()
             if b:
-                b.cover_url = public_url
+                b.cover_url = public_url  # type: ignore[assignment]
                 await session.commit()
 
         logger.info("  Saved cover_url: %s", public_url)

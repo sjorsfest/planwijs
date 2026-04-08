@@ -5,7 +5,7 @@ from typing import TypeVar
 
 from sqlalchemy.exc import DBAPIError, InterfaceError as SAInterfaceError, OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlmodel import SQLModel
+from sqlmodel import SQLModel, text
 
 from app.config import settings
 
@@ -107,3 +107,10 @@ async def run_read_with_retry(operation: ReadOperation[T]) -> T:
 
     async with get_session_context() as session:
         return await operation(session)
+
+
+async def check_db_health() -> bool:
+    """Check database connectivity. Returns True if healthy."""
+    async with SessionLocal() as session:
+        await session.execute(text("SELECT 1"))
+        return True

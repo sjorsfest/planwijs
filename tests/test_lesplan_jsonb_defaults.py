@@ -8,13 +8,13 @@ from app.models.lesplan import LesplanOverview, LesplanRequest, LessonPlan
 
 class LesplanJsonbDefaultTests(unittest.TestCase):
     def test_lesplan_request_jsonb_default_compiles_without_double_quoting(self) -> None:
-        ddl = str(CreateTable(LesplanRequest.__table__).compile(dialect=postgresql.dialect()))
+        ddl = str(CreateTable(LesplanRequest.__table__).compile(dialect=postgresql.dialect()))  # type: ignore[arg-type]
 
         self.assertIn("selected_paragraph_ids JSONB DEFAULT '[]' NOT NULL", ddl)
         self.assertNotIn("'''[]''::jsonb'", ddl)
 
     def test_lesson_plan_jsonb_defaults_compile_without_double_quoting(self) -> None:
-        ddl = str(CreateTable(LessonPlan.__table__).compile(dialect=postgresql.dialect()))
+        ddl = str(CreateTable(LessonPlan.__table__).compile(dialect=postgresql.dialect()))  # type: ignore[arg-type]
 
         self.assertIn("learning_objectives JSONB DEFAULT '[]' NOT NULL", ddl)
         self.assertIn("time_sections JSONB DEFAULT '[]' NOT NULL", ddl)
@@ -23,7 +23,7 @@ class LesplanJsonbDefaultTests(unittest.TestCase):
         self.assertNotIn("'''[]''::jsonb'", ddl)
 
     def test_lesplan_overview_jsonb_defaults_compile_without_double_quoting(self) -> None:
-        ddl = str(CreateTable(LesplanOverview.__table__).compile(dialect=postgresql.dialect()))
+        ddl = str(CreateTable(LesplanOverview.__table__).compile(dialect=postgresql.dialect()))  # type: ignore[arg-type]
 
         self.assertIn("series_themes JSONB DEFAULT '[]' NOT NULL", ddl)
         self.assertIn("goal_coverage JSONB DEFAULT '[]' NOT NULL", ddl)

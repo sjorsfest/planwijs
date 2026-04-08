@@ -38,7 +38,7 @@ async def list_books(
         if school_year is not None:
             stmt = stmt.where(Book.school_years.contains([school_year.value]))  # type: ignore[union-attr]
         result = await session.execute(stmt)
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     return await run_read_with_retry(operation)
 
@@ -52,7 +52,7 @@ async def get_book(book_id: str):
         subject = await session.get(SubjectModel, book.subject_id) if book.subject_id else None
 
         chapters_result = await session.execute(
-            select(BookChapter).where(BookChapter.book_id == book_id).order_by(BookChapter.index)
+            select(BookChapter).where(BookChapter.book_id == book_id).order_by(BookChapter.index)  # type: ignore[arg-type]
         )
         chapters = chapters_result.scalars().all()
 
@@ -60,7 +60,7 @@ async def get_book(book_id: str):
         paragraphs_result = await session.execute(
             select(BookChapterParagraph)
             .where(BookChapterParagraph.chapter_id.in_(chapter_ids))  # type: ignore[union-attr]
-            .order_by(BookChapterParagraph.index)
+            .order_by(BookChapterParagraph.index)  # type: ignore[arg-type]
         )
         paragraphs = paragraphs_result.scalars().all()
 

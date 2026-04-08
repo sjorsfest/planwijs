@@ -27,7 +27,7 @@ class RunReadWithRetryTests(unittest.IsolatedAsyncioTestCase):
             return "ok"
 
         with patch("app.database.get_session_context", fake_get_session_context):
-            result = await run_read_with_retry(operation)
+            result = await run_read_with_retry(operation)  # type: ignore[arg-type]
 
         self.assertEqual(result, "ok")
         self.assertEqual(call_order, ["first", "second"])
@@ -46,6 +46,6 @@ class RunReadWithRetryTests(unittest.IsolatedAsyncioTestCase):
 
         with patch("app.database.get_session_context", fake_get_session_context):
             with self.assertRaises(OperationalError):
-                await run_read_with_retry(operation)
+                await run_read_with_retry(operation)  # type: ignore[arg-type]
 
         self.assertEqual(call_count, 1)

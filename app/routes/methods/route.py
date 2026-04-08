@@ -23,7 +23,7 @@ async def list_methods(
         if subject is not None:
             stmt = stmt.where(Method.subject == subject)
         result = await session.execute(stmt)
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     return await run_read_with_retry(operation)
 

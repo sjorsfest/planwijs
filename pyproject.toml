@@ -25,3 +25,6 @@ dependencies = [
 dev = [
     "ty>=0.0.24",
 ]
+
+[tool.ty.src]
+exclude = ["alembic/"]

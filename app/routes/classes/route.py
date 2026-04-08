@@ -27,7 +27,7 @@ async def list_classes(
     user_id = current_user.id
 
     async def operation(session: AsyncSession) -> list[Class]:
-        stmt = select(Class).where(Class.user_id == user_id).order_by(Class.created_at.desc())
+        stmt = select(Class).where(Class.user_id == user_id).order_by(Class.created_at.desc())  # type: ignore[union-attr]
         if subject is not None:
             stmt = stmt.where(Class.subject == subject)
         if level is not None:
@@ -38,7 +38,7 @@ async def list_classes(
             stmt = stmt.where(Class.difficulty == difficulty)
 
         result = await session.execute(stmt)
-        classes = result.scalars().all()
+        classes = list(result.scalars().all())
         logger.debug("Listed %d classes for user %s", len(classes), user_id)
         return classes
 

@@ -20,7 +20,7 @@ async def list_events(current_user: User = Depends(get_current_user)):
 
     async def operation(session: AsyncSession) -> list[Event]:
         result = await session.execute(select(Event).where(Event.user_id == user_id))
-        events = result.scalars().all()
+        events = list(result.scalars().all())
         logger.debug("Listed %d events for user %s", len(events), user_id)
         return events
 
