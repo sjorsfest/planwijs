@@ -33,7 +33,7 @@ from app.models.subject import Subject as SubjectModel
 
 logger = logging.getLogger(__name__)
 
-SITEMAP_URL = "https://leren.jojoschool.nl/book-sitemap/2.xml"
+SITEMAP_URL = "https://leren.jojoschool.nl/book-sitemap/1.xml"
 BASE_URL = "https://leren.jojoschool.nl"
 
 # ── URL classification regexes ────────────────────────────────────────────────

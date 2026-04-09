@@ -44,8 +44,9 @@ async def get_class(user_id: str, class_id: str) -> Class:
 
 
 async def create_class(session: AsyncSession, data: Class, user_id: str) -> Class:
-    classroom = Class.model_validate(data)
-    classroom.user_id = user_id
+    obj = data.model_dump(exclude_unset=True, exclude={"id", "user_id"})
+    obj["user_id"] = user_id
+    classroom = Class.model_validate(obj)
     classroom = await classroom_repo.save(session, classroom)
     logger.info("Created class: id=%s user_id=%s", classroom.id, classroom.user_id)
     return classroom
