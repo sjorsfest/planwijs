@@ -46,7 +46,7 @@ class LesplanOverviewNormalizationTests(unittest.TestCase):
         self.assertEqual(covered, {0, 1, 2})
         self.assertEqual(len(normalized["goal_coverage"]), 2)
         self.assertEqual(len(normalized["knowledge_coverage"]), 2)
-        self.assertIn("ready_for_approval", normalized["approval_readiness"])
+        self.assertNotIn("approval_readiness", normalized)
 
     def test_rewrites_generic_teaching_hints_to_varied_workforms(self) -> None:
         payload = {

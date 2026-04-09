@@ -24,7 +24,6 @@ OVERVIEW_FIELD_NAMES = {
     "lesson_outline",
     "goal_coverage",
     "knowledge_coverage",
-    "approval_readiness",
     "didactic_approach",
 }
 
@@ -71,7 +70,6 @@ teaching_approach_hint, builds_on, concept_tags, lesson_intention, end_understan
 sequence_rationale, builds_on_lessons, paragraph_indices
 - goal_coverage: list[object] met per item: goal, lesson_numbers, rationale
 - knowledge_coverage: list[object] met per item: knowledge, lesson_numbers, rationale
-- approval_readiness: object met: ready_for_approval, rationale, checklist, open_questions
 - didactic_approach: string
 """
 

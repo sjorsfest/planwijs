@@ -67,25 +67,6 @@ class KnowledgeCoverageItem(BaseModel):
     rationale: str = ""
 
 
-class ApprovalReadiness(BaseModel):
-    ready_for_approval: bool = False
-    rationale: str = ""
-    checklist: list[str] = Field(default_factory=list)
-    open_questions: list[str] = Field(default_factory=list)
-
-    @field_validator("checklist", "open_questions", mode="before")
-    @classmethod
-    def _parse_string_lists(cls, v: object) -> object:
-        if isinstance(v, str):
-            try:
-                parsed = json.loads(v)
-                if isinstance(parsed, list):
-                    return parsed
-            except json.JSONDecodeError:
-                return [line.strip("- ").strip() for line in v.splitlines() if line.strip()]
-        return v
-
-
 class GeneratedLesplanOverview(BaseModel):
     title: str
     series_summary: str
@@ -97,7 +78,6 @@ class GeneratedLesplanOverview(BaseModel):
     lesson_outline: list[LessonOutlineItem] = Field(default_factory=list)
     goal_coverage: list[GoalCoverageItem] = Field(default_factory=list)
     knowledge_coverage: list[KnowledgeCoverageItem] = Field(default_factory=list)
-    approval_readiness: ApprovalReadiness
     didactic_approach: str
 
     @field_validator(
@@ -117,21 +97,6 @@ class GeneratedLesplanOverview(BaseModel):
             except json.JSONDecodeError:
                 return v
             return parsed
-        return v
-
-    @field_validator("approval_readiness", mode="before")
-    @classmethod
-    def _parse_approval_readiness_string(cls, v: object) -> object:
-        if isinstance(v, str):
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError:
-                return {
-                    "ready_for_approval": False,
-                    "rationale": v,
-                    "checklist": [],
-                    "open_questions": [],
-                }
         return v
 
 
@@ -167,19 +132,6 @@ class GeneratedOverviewRevision(BaseModel):
         if isinstance(v, str):
             return json.loads(v)
         return v
-
-
-def _default_approval_readiness() -> ApprovalReadiness:
-    return ApprovalReadiness(
-        ready_for_approval=False,
-        rationale="Controleer doelen, kernkennis en lesopbouw voordat je goedkeurt.",
-        checklist=[
-            "Doelen sluiten aan op de klas.",
-            "Kernkennis is volledig en correct.",
-            "Lesvolgorde bouwt logisch op.",
-        ],
-        open_questions=[],
-    )
 
 
 class GeneratedOverviewIdentity(BaseModel):
@@ -241,24 +193,6 @@ class GeneratedOverviewTeacherNotes(BaseModel):
     recommended_approach: str = ""
     learning_progression: str = ""
     didactic_approach: str = ""
-    approval_readiness: ApprovalReadiness = Field(default_factory=_default_approval_readiness)
-
-    @field_validator("approval_readiness", mode="before")
-    @classmethod
-    def _parse_approval_readiness(cls, v: object) -> object:
-        if isinstance(v, str):
-            try:
-                parsed = json.loads(v)
-                if isinstance(parsed, dict):
-                    return parsed
-            except json.JSONDecodeError:
-                return {
-                    "ready_for_approval": False,
-                    "rationale": v,
-                    "checklist": [],
-                    "open_questions": [],
-                }
-        return v
 
 
 @dataclass
@@ -276,3 +210,4 @@ class LesplanContext:
     attention_span_minutes: int | None = None
     support_challenge: str | None = None
     class_notes: str | None = None
+    classroom_assets: list[str] | None = None

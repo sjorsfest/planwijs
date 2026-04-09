@@ -14,7 +14,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 from app.config import settings  # noqa: E402
-from app.models import User, Event, Method, Book, BookChapter, Class, SubjectModel  # noqa: F401, E402
+from app.models import User, Method, Book, BookChapter, Class, SubjectModel, Classroom  # noqa: F401, E402
 from sqlmodel import SQLModel  # noqa: E402
 
 target_metadata = SQLModel.metadata

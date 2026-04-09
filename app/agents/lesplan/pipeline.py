@@ -25,7 +25,6 @@ from .utils import (
     _compose_overview_from_parts,
     _ensure_series_summary_includes_delivery,
     _learning_goal_feedback_lines,
-    _normalize_approval_readiness,
     _normalize_learning_goals_for_context,
     _normalize_lesson_outline_for_context,
     _unique_non_empty,
@@ -95,17 +94,10 @@ async def stream_overview(ctx: LesplanContext) -> AsyncGenerator[tuple[dict[str,
         _build_teacher_notes_prompt(ctx, identity_data, sequence_struct, learning_goals)
     )
     teacher_notes = teacher_result.output
-    readiness = _normalize_approval_readiness(
-        teacher_notes.approval_readiness,
-        has_goals=bool(learning_goals),
-        has_knowledge=bool(sequence_knowledge),
-        has_outline=bool(sequence_outline),
-    )
     teacher_partial = {
         "recommended_approach": teacher_notes.recommended_approach.strip(),
         "learning_progression": teacher_notes.learning_progression.strip(),
         "didactic_approach": teacher_notes.didactic_approach.strip(),
-        "approval_readiness": readiness.model_dump(mode="json"),
     }
     series_summary = _ensure_series_summary_includes_delivery(
         series_summary=identity_partial["series_summary"],
@@ -131,7 +123,6 @@ async def stream_overview(ctx: LesplanContext) -> AsyncGenerator[tuple[dict[str,
             recommended_approach=teacher_partial["recommended_approach"],
             learning_progression=teacher_partial["learning_progression"],
             didactic_approach=teacher_partial["didactic_approach"],
-            approval_readiness=readiness,
         ),
     )
     _validate_overview_for_context(composed, ctx)
@@ -167,12 +158,6 @@ async def generate_overview(ctx: LesplanContext) -> GeneratedLesplanOverview:
         _build_teacher_notes_prompt(ctx, identity_data, sequence_struct, learning_goals)
     )
     teacher_notes = teacher_result.output
-    readiness = _normalize_approval_readiness(
-        teacher_notes.approval_readiness,
-        has_goals=bool(learning_goals),
-        has_knowledge=bool(sequence_knowledge),
-        has_outline=bool(sequence_outline),
-    )
 
     series_summary = _ensure_series_summary_includes_delivery(
         series_summary=identity_data.series_summary,
@@ -196,7 +181,6 @@ async def generate_overview(ctx: LesplanContext) -> GeneratedLesplanOverview:
             recommended_approach=teacher_notes.recommended_approach.strip(),
             learning_progression=teacher_notes.learning_progression.strip(),
             didactic_approach=teacher_notes.didactic_approach.strip(),
-            approval_readiness=readiness,
         ),
     )
     _validate_overview_for_context(overview, ctx)

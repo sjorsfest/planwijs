@@ -101,13 +101,6 @@ class KnowledgeCoverageItemResponse(BaseModel):
     rationale: str = ""
 
 
-class ApprovalReadinessResponse(BaseModel):
-    ready_for_approval: bool = False
-    rationale: str = ""
-    checklist: list[str] = Field(default_factory=list)
-    open_questions: list[str] = Field(default_factory=list)
-
-
 class LesplanOverviewResponse(BaseModel):
     id: str
     title: str
@@ -120,7 +113,6 @@ class LesplanOverviewResponse(BaseModel):
     lesson_outline: list[LessonOutlineItemResponse]
     goal_coverage: list[GoalCoverageItemResponse]
     knowledge_coverage: list[KnowledgeCoverageItemResponse]
-    approval_readiness: ApprovalReadinessResponse
     didactic_approach: str
     lessons: list[LessonPlanResponse]
 

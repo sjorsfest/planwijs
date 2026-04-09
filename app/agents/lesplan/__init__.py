@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from .pipeline import generate_lessons, generate_overview, stream_overview
 from .types import (
-    ApprovalReadiness,
     GeneratedLessonPlan,
     GeneratedLessons,
     GeneratedLesplanOverview,
@@ -23,7 +22,6 @@ from .utils import (
 )
 
 __all__ = [
-    "ApprovalReadiness",
     "GeneratedLessonPlan",
     "GeneratedLessons",
     "GeneratedLesplanOverview",

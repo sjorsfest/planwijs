@@ -3,7 +3,10 @@
     "allow": [
       "Bash(.venv/bin/python -c \"from app.models.book import Book; print\\(''ok''\\)\")",
       "Bash(find /Users/jeroenmeij/Desktop/personal/planwijs -type f -name *lesplan* -o -name *lesson*)",
-      "Bash(uv run:*)"
+      "Bash(uv run:*)",
+      "Bash(.venv/bin/ty check:*)",
+      "Bash(python -m pytest tests/test_lesplan_overview_contract.py tests/test_lesplan_overview_normalization.py tests/test_lesplan_jsonb_defaults.py -v)",
+      "Bash(python -m unittest tests.test_lesplan_overview_contract tests.test_lesplan_overview_normalization tests.test_lesplan_jsonb_defaults -v)"
     ]
   }
 }

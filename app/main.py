@@ -10,7 +10,7 @@ from app.config import settings
 from app.database import check_db_health, dispose_engine
 from app.logging_config import configure_logging
 from app.middleware import RequestContextMiddleware, register_error_handlers
-from app.routes import auth, books, calendar, classes, events, lesplan, methods, subjects, users
+from app.routes import auth, books, calendar, classes, classrooms, lesplan, methods, subjects, users
 
 configure_logging(debug=settings.debug)
 logger = logging.getLogger(__name__)
@@ -44,7 +44,7 @@ register_error_handlers(app)
 # --- Routers ---
 app.include_router(auth.router)
 app.include_router(users.router)
-app.include_router(events.router)
+app.include_router(classrooms.router)
 app.include_router(methods.router, dependencies=[Depends(get_current_user)])
 app.include_router(books.router, dependencies=[Depends(get_current_user)])
 app.include_router(classes.router)

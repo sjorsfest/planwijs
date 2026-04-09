@@ -126,11 +126,6 @@ concrete lessen te genereren.
   - paragraph_indices (0-gebaseerde indices van de geselecteerde paragrafen die deze les dekt)
 - goal_coverage: koppel elk learning_goal aan lesson_numbers (minimaal 1) met korte rationale.
 - knowledge_coverage: koppel elk key_knowledge-item aan lesson_numbers (minimaal 1) met korte rationale.
-- approval_readiness: object met:
-  - ready_for_approval (boolean)
-  - rationale (1-2 zinnen)
-  - checklist (korte bullets die docent kan nalopen)
-  - open_questions (optioneel, kan leeg zijn)
 - didactic_approach: de uitgewerkte didactische aanpak voor de gehele serie (5-8 zinnen).
   Beschrijf concreet welke werkvormen worden ingezet, hoe lessen zijn opgebouwd,
   (bijv. activering → instructie → verwerking → reflectie), 
@@ -154,7 +149,7 @@ feedback gegeven en jij past het overzicht aan op basis van die feedback.
   en stel een verduidelijkende vraag in assistant_message.
 - Lever exact hetzelfde schema terug als in de overzichtsfase, inclusief:
   series_summary, series_themes, lesson_outline met alle subvelden,
-  goal_coverage, knowledge_coverage en approval_readiness.
+  goal_coverage en knowledge_coverage.
 
 ## Uitvoer
 - overview: het volledig bijgewerkte overzicht (alle velden ingevuld).
@@ -251,8 +246,6 @@ Uitvoer:
 - recommended_approach: 4-6 zinnen.
 - learning_progression: 3-5 zinnen.
 - didactic_approach: 5-8 zinnen.
-- approval_readiness: object met ready_for_approval, rationale, checklist, open_questions.
-
 Beschrijf expliciet dat details pas na goedkeuring worden uitgewerkt.
 """
 

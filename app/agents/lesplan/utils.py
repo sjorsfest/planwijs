@@ -6,7 +6,6 @@ import re
 from typing import Any
 
 from .types import (
-    ApprovalReadiness,
     GeneratedLesplanOverview,
     GeneratedOverviewIdentity,
     GeneratedOverviewSequence,
@@ -33,7 +32,29 @@ def _build_context_block(ctx: LesplanContext) -> str:
     attention_str = f"{ctx.attention_span_minutes} minuten" if ctx.attention_span_minutes else "niet afgebakend"
     support_str = ctx.support_challenge or "Geen specifieke bijzonderheden"
     notes_line = f"- Specifieke docentnotities: {ctx.class_notes}\n  (Deze observaties en wensen bepalen mede de insteek van de werkvormen en de tips in de teacher_notes)\n" if ctx.class_notes else ""
-    
+
+    if ctx.classroom_assets:
+        assets_str = ", ".join(ctx.classroom_assets)
+        assets_block = f"""
+                ### LOKAAL & BESCHIKBARE MIDDELEN
+                - Beschikbare middelen in het lokaal: {assets_str}
+                (Gebruik ALLEEN deze middelen bij het kiezen van werkvormen en activiteiten.
+                 Als een digibord beschikbaar is, kun je er video's, presentaties of interactieve opdrachten mee inzetten.
+                 Als leerlingen telefoons/tablets hebben, kun je digitale tools zoals Kahoot, Quizlet of online polls gebruiken.
+                 Als er een whiteboard is, kun je dat inzetten voor schema's, mindmaps of gezamenlijke notities.
+                 Als er lab-materiaal is, kun je practica of demonstraties inplannen.
+                 BELANGRIJK: Stel GEEN middelen voor die niet in deze lijst staan. Als er bijvoorbeeld geen digibord is,
+                 gebruik dan geen video's of digitale presentaties in de les.)
+"""
+    else:
+        assets_block = """
+                ### LOKAAL & BESCHIKBARE MIDDELEN
+                - Beschikbare middelen: niet opgegeven
+                (Er is geen informatie over de beschikbare middelen in het lokaal.
+                 Ga uit van een standaard klaslokaal met alleen een schoolbord/whiteboard.
+                 Vermijd het voorstellen van activiteiten die specifieke middelen vereisen zoals digibord, tablets of lab-materiaal.)
+"""
+
     return f"""\
                 ### 1. BASISGEGEVENS & BRONMATERIAAL
                 - Boek: {ctx.book_title} ({ctx.book_subject}) - Methode: {ctx.method_name}
@@ -52,6 +73,7 @@ def _build_context_block(ctx: LesplanContext) -> str:
                 (Deze behoeften vereisen specifieke differentiatiesuggesties en praktische tips in de teacher_notes van de lesplannen)
                 - Extra instructies van de docent: {ctx.class_notes}
                 (Dit zijn instructies van de docent die extra rekening mee gehouden moeten worden bij het opstellen van de lesplannen, dit is erg belangrijk!!)
+{assets_block}
                 ### 3. STRUCTURELE RANDVOORWAARDEN
                 - Aantal lessen: {ctx.num_lessons}
                 (De geselecteerde theorie moet logisch over dit aantal lessen verspreid worden)
@@ -747,31 +769,6 @@ def _build_knowledge_coverage(
     return coverage
 
 
-def _normalize_approval_readiness(
-    readiness: ApprovalReadiness,
-    *,
-    has_goals: bool,
-    has_knowledge: bool,
-    has_outline: bool,
-) -> ApprovalReadiness:
-    checklist = _unique_non_empty(readiness.checklist)
-    if not checklist:
-        checklist = [
-            "Doelen sluiten aan op de klas.",
-            "Kernkennis is volledig en correct.",
-            "Lesvolgorde bouwt logisch op.",
-        ]
-    rationale = readiness.rationale.strip() or "De reeks is klaar om inhoudelijk beoordeeld te worden."
-    open_questions = _unique_non_empty(readiness.open_questions)
-    ready_for_approval = readiness.ready_for_approval and has_goals and has_knowledge and has_outline
-    return ApprovalReadiness(
-        ready_for_approval=ready_for_approval,
-        rationale=rationale,
-        checklist=checklist,
-        open_questions=open_questions,
-    )
-
-
 def _first_sentence(text: str) -> str:
     clean = text.strip()
     if not clean:
@@ -1092,12 +1089,6 @@ def _compose_overview_from_parts(
 
     goal_coverage = _build_goal_coverage(learning_goals, lesson_outline)
     knowledge_coverage = _build_knowledge_coverage(key_knowledge, lesson_outline)
-    approval_readiness = _normalize_approval_readiness(
-        teacher_notes.approval_readiness,
-        has_goals=bool(learning_goals),
-        has_knowledge=bool(key_knowledge),
-        has_outline=bool(lesson_outline),
-    )
 
     return GeneratedLesplanOverview(
         title=title,
@@ -1110,7 +1101,6 @@ def _compose_overview_from_parts(
         lesson_outline=lesson_outline,
         goal_coverage=goal_coverage,
         knowledge_coverage=knowledge_coverage,
-        approval_readiness=approval_readiness,
         didactic_approach=didactic_approach,
     )
 
@@ -1236,7 +1226,7 @@ def _build_teacher_notes_prompt(
     )
     return (
         f"{background}\n\n{context_block}\n\n"
-        "Schrijf alleen recommended_approach, learning_progression, didactic_approach en approval_readiness."
+        "Schrijf alleen recommended_approach, learning_progression en didactic_approach."
     )
 
 
@@ -1282,8 +1272,6 @@ def _build_overview_text(overview: GeneratedLesplanOverview) -> str:
         f"  - {item.knowledge}: lessen {item.lesson_numbers} ({item.rationale})"
         for item in overview.knowledge_coverage
     )
-    readiness_checklist = "\n".join(f"  - {item}" for item in overview.approval_readiness.checklist) or "  - (geen)"
-    readiness_questions = "\n".join(f"  - {item}" for item in overview.approval_readiness.open_questions) or "  - (geen)"
     return (
         f"Titel: {overview.title}\n"
         f"Seriesamenvatting:\n{overview.series_summary}\n\n"
@@ -1295,11 +1283,6 @@ def _build_overview_text(overview: GeneratedLesplanOverview) -> str:
         f"Lesoverzicht:\n{lesson_outline_lines}\n\n"
         f"Goal coverage:\n{goal_coverage_lines}\n\n"
         f"Knowledge coverage:\n{knowledge_coverage_lines}\n\n"
-        f"Approval readiness:\n"
-        f"  ready_for_approval: {overview.approval_readiness.ready_for_approval}\n"
-        f"  rationale: {overview.approval_readiness.rationale}\n"
-        f"  checklist:\n{readiness_checklist}\n"
-        f"  open_questions:\n{readiness_questions}\n\n"
         f"Didactische aanpak:\n{overview.didactic_approach}"
     )
 

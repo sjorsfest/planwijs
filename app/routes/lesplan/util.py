@@ -10,7 +10,6 @@ from app.exceptions import NotFoundError
 from sqlmodel import select
 
 from app.agents.lesplan_agent import (
-    ApprovalReadiness,
     GeneratedLesplanOverview,
     GoalCoverageItem,
     KnowledgeCoverageItem,
@@ -27,11 +26,11 @@ from app.models.book_chapter_paragraph import BookChapterParagraph
 from app.models.classroom import Class
 from app.models.enums import LesplanStatus
 from app.models.lesplan import LesplanOverview, LesplanRequest, LessonPlan, LessonPreparationTodo
+from app.models.room import Classroom
 from app.models.method import Method
 from app.models.subject import Subject as SubjectModel
 
 from .types import (
-    ApprovalReadinessResponse,
     FeedbackItem,
     GoalCoverageItemResponse,
     KnowledgeCoverageItemResponse,
@@ -299,41 +298,6 @@ def _diversify_teaching_approach_hints(items: list[dict[str, Any]]) -> None:
         )
 
 
-def _default_approval_readiness() -> dict[str, Any]:
-    return {
-        "ready_for_approval": False,
-        "rationale": "Controleer of doelen, kernkennis en lesopbouw kloppen voordat je goedkeurt.",
-        "checklist": [
-            "Doelen sluiten aan op de klas.",
-            "Kernkennis is volledig en correct.",
-            "Lesvolgorde bouwt logisch op.",
-        ],
-        "open_questions": [],
-    }
-
-
-def _normalize_approval_readiness(value: Any) -> dict[str, Any]:
-    base = _default_approval_readiness()
-    if not isinstance(value, dict):
-        return base
-
-    ready_raw = value.get("ready_for_approval")
-    if isinstance(ready_raw, bool):
-        ready_for_approval = ready_raw
-    elif isinstance(ready_raw, str):
-        ready_for_approval = ready_raw.strip().lower() in {"true", "1", "yes", "ja"}
-    else:
-        ready_for_approval = bool(ready_raw)
-
-    rationale = str(value.get("rationale") or base["rationale"]).strip() or base["rationale"]
-    checklist = _normalize_string_list(value.get("checklist")) or base["checklist"]
-    open_questions = _normalize_string_list(value.get("open_questions"))
-    return {
-        "ready_for_approval": ready_for_approval,
-        "rationale": rationale,
-        "checklist": checklist,
-        "open_questions": open_questions,
-    }
 
 
 def _normalize_lesson_outline(
@@ -566,8 +530,6 @@ def _normalize_overview_payload(
         key_knowledge,
         lesson_numbers,
     )
-    approval_readiness = _normalize_approval_readiness(data.get("approval_readiness"))
-
     return {
         "title": str(data.get("title") or "").strip() or "Ongetitelde lessenreeks",
         "series_summary": series_summary,
@@ -579,7 +541,6 @@ def _normalize_overview_payload(
         "lesson_outline": lesson_outline,
         "goal_coverage": goal_coverage,
         "knowledge_coverage": knowledge_coverage,
-        "approval_readiness": approval_readiness,
         "didactic_approach": str(data.get("didactic_approach") or "").strip(),
     }
 
@@ -622,6 +583,12 @@ async def _build_context(session: AsyncSession, req: LesplanRequest) -> LesplanC
         if subject is not None:
             subject_name = subject.name
 
+    classroom_assets: list[str] | None = None
+    if req.classroom_id:
+        room = await session.get(Classroom, req.classroom_id)
+        if room is not None:
+            classroom_assets = room.assets or None
+
     paragraph_results = await session.execute(
         select(BookChapterParagraph).where(
             BookChapterParagraph.id.in_(req.selected_paragraph_ids)  # type: ignore[union-attr]
@@ -655,6 +622,7 @@ async def _build_context(session: AsyncSession, req: LesplanRequest) -> LesplanC
         class_notes=classroom.class_notes,
         num_lessons=req.num_lessons,
         lesson_duration_minutes=req.lesson_duration_minutes,
+        classroom_assets=classroom_assets,
     )
 
 
@@ -701,7 +669,6 @@ async def _fetch_overview_response(
             KnowledgeCoverageItemResponse(**item)
             for item in normalized_payload["knowledge_coverage"]
         ],
-        approval_readiness=ApprovalReadinessResponse(**normalized_payload["approval_readiness"]),
         didactic_approach=normalized_payload["didactic_approach"],
         lessons=lesson_responses,
     )
@@ -751,7 +718,6 @@ async def _persist_overview(
             lesson_outline=normalized["lesson_outline"],
             goal_coverage=normalized["goal_coverage"],
             knowledge_coverage=normalized["knowledge_coverage"],
-            approval_readiness=normalized["approval_readiness"],
             didactic_approach=normalized["didactic_approach"],
         )
         session.add(overview)
@@ -766,7 +732,6 @@ async def _persist_overview(
         overview.lesson_outline = normalized["lesson_outline"]
         overview.goal_coverage = normalized["goal_coverage"]
         overview.knowledge_coverage = normalized["knowledge_coverage"]
-        overview.approval_readiness = normalized["approval_readiness"]
         overview.didactic_approach = normalized["didactic_approach"]
     return overview
 
@@ -783,7 +748,6 @@ def _raw_overview_payload_from_row(overview: LesplanOverview) -> dict[str, Any]:
         "lesson_outline": overview.lesson_outline,
         "goal_coverage": overview.goal_coverage,
         "knowledge_coverage": overview.knowledge_coverage,
-        "approval_readiness": overview.approval_readiness,
         "didactic_approach": overview.didactic_approach,
     }
 
@@ -814,7 +778,6 @@ def _generated_overview_from_row(
         lesson_outline=[LessonOutlineItem(**item) for item in normalized["lesson_outline"]],
         goal_coverage=[GoalCoverageItem(**item) for item in normalized["goal_coverage"]],
         knowledge_coverage=[KnowledgeCoverageItem(**item) for item in normalized["knowledge_coverage"]],
-        approval_readiness=ApprovalReadiness(**normalized["approval_readiness"]),
         didactic_approach=normalized["didactic_approach"],
     )
 

@@ -6,7 +6,6 @@ Implementation now lives in `app.agents.lesplan`.
 from __future__ import annotations
 
 from app.agents.lesplan import (
-    ApprovalReadiness,
     GeneratedLessonPlan,
     GeneratedLessons,
     GeneratedLesplanOverview,
@@ -27,7 +26,6 @@ from app.agents.lesplan import (
 )
 
 __all__ = [
-    "ApprovalReadiness",
     "GeneratedLessonPlan",
     "GeneratedLessons",
     "GeneratedLesplanOverview",

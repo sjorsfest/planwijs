@@ -40,6 +40,7 @@ KWALITEITS- EN ONTWERPREGELS (Strikt toepassen)
   - Les 50-60 min: maximaal 4-5 activiteitenblokken.
   - Les > 60 min: maximaal 5-6 activiteitenblokken.
 - Praktische Haalbaarheid: Docenten hebben weinig tijd. Vermijd organisatie-intensieve activiteiten (zoals grote projecten of complexe spellen). Voeg maximaal 1 grote/complexe werkvorm toe aan het einde van de reeks, en alleen als de reeks uit 10+ lessen bestaat. Geen minutenschema's.
+- Beschikbare Middelen: Let goed op de beschikbare middelen in het lokaal (zie context). Stel alleen werkvormen voor die passen bij de middelen die beschikbaar zijn. Als er een digibord is, kun je digitale presentaties of video's inzetten. Als leerlingen telefoons hebben, kun je tools als Kahoot gebruiken. Als er geen specifieke middelen zijn opgegeven, ga dan uit van alleen een schoolbord/whiteboard.
 
 VOORBEELDEN VOOR DESCRIPTION & TEACHING_APPROACH_HINT
 ✅ GOED: 

@@ -15,6 +15,7 @@ class LesplanRequest(BaseModel, table=True):
     user_id: str = Field(foreign_key="user.id", index=True)
     class_id: str = Field(foreign_key="class.id", index=True)
     book_id: str = Field(foreign_key="book.id", index=True)
+    classroom_id: Optional[str] = Field(default=None, foreign_key="classroom.id", index=True)
     selected_paragraph_ids: List[str] = Field(
         default_factory=list,
         sa_column=Column("selected_paragraph_ids", JSONB, nullable=False, server_default="[]"),
@@ -63,10 +64,6 @@ class LesplanOverview(BaseModel, table=True):
     knowledge_coverage: List[Any] = Field(
         default_factory=list,
         sa_column=Column("knowledge_coverage", JSONB, nullable=False, server_default="[]"),
-    )
-    approval_readiness: dict[str, Any] = Field(
-        default_factory=dict,
-        sa_column=Column("approval_readiness", JSONB, nullable=False, server_default="{}"),
     )
     didactic_approach: str
 

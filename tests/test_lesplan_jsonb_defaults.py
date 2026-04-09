@@ -28,5 +28,4 @@ class LesplanJsonbDefaultTests(unittest.TestCase):
         self.assertIn("series_themes JSONB DEFAULT '[]' NOT NULL", ddl)
         self.assertIn("goal_coverage JSONB DEFAULT '[]' NOT NULL", ddl)
         self.assertIn("knowledge_coverage JSONB DEFAULT '[]' NOT NULL", ddl)
-        self.assertIn("approval_readiness JSONB DEFAULT '{}' NOT NULL", ddl)
         self.assertNotIn("'''[]''::jsonb'", ddl)

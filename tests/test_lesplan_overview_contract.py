@@ -1,7 +1,6 @@
 import unittest
 
 from app.agents.lesplan_agent import (
-    ApprovalReadiness,
     GeneratedLesplanOverview,
     GoalCoverageItem,
     KnowledgeCoverageItem,
@@ -94,12 +93,6 @@ class LesplanOverviewContractTests(unittest.TestCase):
                     rationale="Wordt in les 2 uitgewerkt.",
                 ),
             ],
-            approval_readiness=ApprovalReadiness(
-                ready_for_approval=True,
-                rationale="Doelen en opbouw zijn voldoende uitgewerkt.",
-                checklist=["Doelen gecontroleerd", "Opbouw gecontroleerd"],
-                open_questions=[],
-            ),
             didactic_approach="Activering, instructie, verwerking en reflectie.",
         )
 

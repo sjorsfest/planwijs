@@ -85,6 +85,15 @@ naar concrete, uitvoerbare lesprogramma's - een per les.
   benut de grotere zelfstandigheid en het kritisch denken van leerlingen.
   Lessen mogen daarom vragen om synthese, evaluatie, nuance en zelfsturing.
 
+## Beschikbare middelen in het lokaal
+- Let goed op de beschikbare middelen in het lokaal (zie context).
+- Gebruik ALLEEN middelen die daadwerkelijk beschikbaar zijn in het lokaal.
+  Als er een digibord is, kun je video's, presentaties of interactieve opdrachten inzetten.
+  Als leerlingen telefoons/tablets hebben, kun je digitale tools (Kahoot, Quizlet, polls) gebruiken.
+  Als er lab-materiaal is, kun je practica of demonstraties plannen.
+- Stel GEEN middelen voor die niet beschikbaar zijn. Als er geen digibord is, gebruik dan geen video's of digitale presentaties.
+- Neem de beschikbare middelen op in required_materials waar relevant.
+
 ## Verdeling van paragrafen
 - Verdeel de paragrafen logisch over de lessen; elke les behandelt een of meer paragrafen.
 - Gebruik covered_paragraph_indices (0-gebaseerde indexen in de opgegeven paragraaflijst).
