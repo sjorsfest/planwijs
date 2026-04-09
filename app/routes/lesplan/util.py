@@ -23,10 +23,10 @@ from app.agents.preparation_agent import PreparationContext, generate_preparatio
 from app.database import SessionLocal
 from app.models.book import Book
 from app.models.book_chapter_paragraph import BookChapterParagraph
-from app.models.classroom import Class
+from app.models.school_class import Class
 from app.models.enums import LesplanStatus
 from app.models.lesplan import LesplanOverview, LesplanRequest, LessonPlan, LessonPreparationTodo
-from app.models.room import Classroom
+from app.models.classroom import Classroom
 from app.models.method import Method
 from app.models.subject import Subject as SubjectModel
 

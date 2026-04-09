@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from app.models.classroom import Class
+from app.models.school_class import Class
 from app.models.enums import ClassDifficulty, Level, SchoolYear, Subject
 
 

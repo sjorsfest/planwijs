@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import run_read_with_retry
 from app.exceptions import NotFoundError
-from app.models.classroom import Class
+from app.models.school_class import Class
 from app.models.enums import ClassDifficulty, Level, SchoolYear, Subject
 from app.repositories import classroom as classroom_repo
 

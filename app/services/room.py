@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import run_read_with_retry
 from app.exceptions import NotFoundError
-from app.models.room import Classroom, ClassroomCreate
+from app.models.classroom import Classroom, ClassroomCreate
 from app.repositories import room as room_repo
 
 logger = logging.getLogger(__name__)

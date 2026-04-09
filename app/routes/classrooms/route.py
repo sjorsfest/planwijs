@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user
 from app.database import get_session
-from app.models.room import Classroom, ClassroomCreate
+from app.models.classroom import Classroom, ClassroomCreate
 from app.models.user import User
 from app.services import room as room_service
 

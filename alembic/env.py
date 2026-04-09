@@ -1,4 +1,5 @@
 import asyncio
+import re
 from logging.config import fileConfig
 
 import alembic_postgresql_enum  # noqa: F401 — registers enum migration support
@@ -21,6 +22,28 @@ target_metadata = SQLModel.metadata
 
 config.set_main_option("sqlalchemy.url", settings.database_url)
 MAX_ALEMBIC_REVISION_LEN = 32
+
+
+def _next_revision_id(slug: str) -> str:
+    """Generate the next sequential revision ID like 0022_slug, truncated to fit MAX_ALEMBIC_REVISION_LEN."""
+    script = ScriptDirectory.from_config(config)
+    max_num = 0
+    for rev in script.walk_revisions():
+        match = re.match(r"^(\d+)", rev.revision)
+        if match:
+            max_num = max(max_num, int(match.group(1)))
+    prefix = f"{max_num + 1:04d}_"
+    max_slug_len = MAX_ALEMBIC_REVISION_LEN - len(prefix)
+    truncated_slug = slug[:max_slug_len].rstrip("_")
+    return f"{prefix}{truncated_slug}"
+
+
+def process_revision_directives(context, revision, directives):
+    """Replace the auto-generated revision ID with a sequential one."""
+    if directives:
+        script = directives[0]
+        slug = script.message.replace(" ", "_").lower() if script.message else "auto"
+        script.rev_id = _next_revision_id(slug)
 
 
 def validate_revision_id_lengths() -> None:
@@ -48,6 +71,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        process_revision_directives=process_revision_directives,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -55,7 +79,11 @@ def run_migrations_offline() -> None:
 
 def do_run_migrations(connection):
     validate_revision_id_lengths()
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        process_revision_directives=process_revision_directives,
+    )
     with context.begin_transaction():
         context.run_migrations()
 

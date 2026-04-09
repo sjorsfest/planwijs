@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from app.models.room import Classroom
+from app.models.classroom import Classroom
 
 
 async def list_for_user(session: AsyncSession, user_id: str) -> list[Classroom]:
