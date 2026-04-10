@@ -1,14 +1,34 @@
 from typing import Optional
 
+from pydantic import model_validator
 from sqlalchemy import Column, Enum as SAEnum
 from sqlmodel import Field
 
 from app.models.base import BaseModel
 from app.models.enums import ClassDifficulty, ClassSupportChallenge, Level, SchoolYear, Subject
 
+_ENUM_FIELDS: dict[str, type] = {
+    "subject": Subject,
+    "level": Level,
+    "school_year": SchoolYear,
+    "difficulty": ClassDifficulty,
+    "support_challenge": ClassSupportChallenge,
+}
+
 
 class Class(BaseModel, table=True):
     __tablename__ = "class"
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_enums(cls, values: dict) -> dict:  # type: ignore[override]
+        if not isinstance(values, dict):
+            return values
+        for field, enum_cls in _ENUM_FIELDS.items():
+            v = values.get(field)
+            if isinstance(v, str):
+                values[field] = enum_cls(v)
+        return values
 
     user_id: str = Field(foreign_key="user.id", index=True)
     name: str

@@ -96,13 +96,14 @@ def _extension_for(content_type: str, url: str) -> str:
 
 
 def _upload_to_r2(client: Any, key: str, data: bytes, content_type: str) -> str:
+    """Upload to R2 and return the path (not the full URL)."""
     client.put_object(
         Bucket=settings.cloudflare_r2_bucket,
         Key=key,
         Body=data,
         ContentType=content_type,
     )
-    return f"{settings.cloudflare_r2_public_url.rstrip('/')}/{key}"
+    return f"/{key}"
 
 
 async def run(dry_run: bool = False, limit: int | None = None) -> None:
@@ -112,7 +113,7 @@ async def run(dry_run: bool = False, limit: int | None = None) -> None:
 
     async with SessionLocal() as session:
         result = await session.execute(
-            select(Book).where(Book.cover_url.is_(None))  # type: ignore[union-attr]
+            select(Book).where(Book.cover_path.is_(None))  # type: ignore[union-attr]
         )
         books: list[Book] = list(result.scalars().all())
 
@@ -155,7 +156,7 @@ async def run(dry_run: bool = False, limit: int | None = None) -> None:
             result2 = await session.execute(select(Book).where(Book.id == book.id))
             b = result2.scalars().first()
             if b:
-                b.cover_url = public_url  # type: ignore[assignment]
+                b.cover_path = public_url  # type: ignore[assignment]
                 await session.commit()
 
         logger.info("  Saved cover_url: %s", public_url)

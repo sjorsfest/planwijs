@@ -8,7 +8,15 @@
       "Bash(python -m pytest tests/test_lesplan_overview_contract.py tests/test_lesplan_overview_normalization.py tests/test_lesplan_jsonb_defaults.py -v)",
       "Bash(python -m unittest tests.test_lesplan_overview_contract tests.test_lesplan_overview_normalization tests.test_lesplan_jsonb_defaults -v)",
       "Bash(python -c \"from app.models.school_class import Class; from app.models.classroom import Classroom, ClassroomCreate; from app.models import Class, Classroom; print\\(''All imports OK''\\)\")",
-      "Bash(alembic heads:*)"
+      "Bash(alembic heads:*)",
+      "Bash(python -m mypy app/models/school_class.py --no-error-summary)",
+      "Bash(python -c \"from app.models.school_class import Class; print\\(''Import OK''\\)\")",
+      "Bash(python -m pyright app/routes/lesplan/util.py app/config.py)",
+      "Bash(python -m mypy app/routes/lesplan/util.py app/config.py)",
+      "Bash(npx pyright:*)",
+      "Bash(source .venv/bin/activate)",
+      "Bash(python -m mypy app/scripts/seed_from_sitemap.py --no-error-summary)",
+      "Bash(python -m app.scripts.fix_levels --dry-run)"
     ]
   }
 }

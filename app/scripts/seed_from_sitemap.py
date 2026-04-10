@@ -33,7 +33,7 @@ from app.models.subject import Subject as SubjectModel
 
 logger = logging.getLogger(__name__)
 
-SITEMAP_URL = "https://leren.jojoschool.nl/book-sitemap/1.xml"
+SITEMAP_URL = "https://leren.jojoschool.nl/book-sitemap/2.xml"
 BASE_URL = "https://leren.jojoschool.nl"
 
 # ── URL classification regexes ────────────────────────────────────────────────
@@ -57,25 +57,56 @@ SLUG_INDEX_RE = re.compile(r"^(?P<index>\d+)-(?P<title>.+)$")
 
 KNOWN_LEVEL_PATTERNS: list[tuple[list[str], list[Level]]] = [
     # 3-token patterns (longest first)
+    (["vmbo", "basis", "kader"], [Level.VMBO_B, Level.VMBO_K]),
     (["vmbo", "t", "havo"], [Level.VMBO_T, Level.HAVO]),
+    # 2-token patterns (below, with others)
     # 2-token patterns
     (["vmbo", "thavo"], [Level.VMBO_T, Level.HAVO]),
+    (["vmbo", "thavovwo"], [Level.VMBO_T, Level.HAVO, Level.VWO]),
+    (["vmbo", "kgthavo"], [Level.VMBO_K, Level.VMBO_G, Level.VMBO_T, Level.HAVO]),
+    (["vmbo", "gthavo"], [Level.VMBO_G, Level.VMBO_T, Level.HAVO]),
+    (["vmbo", "gtehavo"], [Level.VMBO_G, Level.VMBO_T, Level.HAVO]),
     (["vmbo", "kgt"], [Level.VMBO_K, Level.VMBO_G, Level.VMBO_T]),
+    (["vmbo", "gth"], [Level.VMBO_G, Level.VMBO_T, Level.HAVO]),
     (["vmbo", "gt"], [Level.VMBO_G, Level.VMBO_T]),
     (["vmbo", "th"], [Level.VMBO_T, Level.HAVO]),  # th = thavo abbreviation
+    (["vmbo", "bk"], [Level.VMBO_B, Level.VMBO_K]),
+    (["vmbo", "basis"], [Level.VMBO_B]),
+    (["vmbo", "kader"], [Level.VMBO_K]),
+    (["vmbo", "basiskader"], [Level.VMBO_B, Level.VMBO_K]),
     (["vmbo", "b"], [Level.VMBO_B]),
     (["vmbo", "k"], [Level.VMBO_K]),
     (["vmbo", "g"], [Level.VMBO_G]),
     (["vmbo", "t"], [Level.VMBO_T]),
+    (["havovwo", "bovenbouw"], [Level.HAVO, Level.VWO]),
+    (["havo", "bovenbouw"], [Level.HAVO]),
+    (["vwo", "gymansium"], [Level.VWO, Level.GYMNASIUM]),  # typo for gymnasium
+    (["vwo", "bovenbouw"], [Level.VWO]),
     (["havo", "vwo"], [Level.HAVO, Level.VWO]),
     # 1-token patterns
     (["mavo"], [Level.VMBO_T]),
     (["gymnasium"], [Level.GYMNASIUM]),
+    (["gymnasiumvwo"], [Level.GYMNASIUM, Level.VWO]),
     (["vwogymnasium"], [Level.VWO, Level.GYMNASIUM]),
+    (["havovwogymnasium"], [Level.HAVO, Level.VWO, Level.GYMNASIUM]),
     (["gymvwo"], [Level.GYMNASIUM, Level.VWO]),
+    (["vwogym"], [Level.VWO, Level.GYMNASIUM]),
     (["havovwo"], [Level.HAVO, Level.VWO]),
+    (["havovwp"], [Level.HAVO, Level.VWO]),  # typo for havovwo
+    (["theoretischhavo"], [Level.VMBO_T, Level.HAVO]),
+    (["vmbokgt"], [Level.VMBO_K, Level.VMBO_G, Level.VMBO_T]),
+    (["basiskader"], [Level.VMBO_B, Level.VMBO_K]),
+    (["kgt"], [Level.VMBO_K, Level.VMBO_G, Level.VMBO_T]),
+    (["bk"], [Level.VMBO_B, Level.VMBO_K]),
+    (["hv"], [Level.HAVO, Level.VWO]),
+    (["vg"], [Level.VWO, Level.GYMNASIUM]),
+    (["vwoh"], [Level.VWO, Level.HAVO]),
+    (["havov"], [Level.HAVO, Level.VWO]),
     (["havo"], [Level.HAVO]),
     (["vwo"], [Level.VWO]),
+    (["th"], [Level.VMBO_T]),
+    (["h"], [Level.HAVO]),
+    (["v"], [Level.VWO]),
     (["vmbo"], [Level.VMBO_B, Level.VMBO_K, Level.VMBO_G, Level.VMBO_T]),
 ]
 
@@ -278,15 +309,38 @@ def _parse_slug_index(slug: str) -> tuple[int | None, str]:
     return None, slug
 
 
+_NOISE_WORDS: set[str] = {
+    "release",
+    # Edition / version indicators
+    "editie", "druk", "nieuw", "oud",
+    "eerste", "eerst", "tweede",
+    "second", "edition",
+    # Product line suffixes
+    "lrn", "line", "max",
+    # Exam / syllabus markers
+    "syllabus",
+    # Typos
+    "bovenboouw",  # bovenbouw typo
+    # Other trailing noise
+    "bovenbouw", "onderbouw", "leerjaar",
+    "literatur", "abschluss",
+    "fase", "level",
+    "s",  # trailing single letter (e.g. students-book-b2-s)
+}
+
+
 def _is_noise_token(t: str) -> bool:
     """Return True for trailing tokens that are not titles or levels.
 
-    Covers: the keyword 'release', any integer greater than 6 (year numbers like
-    2020/2022, edition codes like 50/51/60/202150, multi-year groups like 31/45/456).
+    Covers: known noise words, any integer greater than 6 (year numbers like
+    2020/2022, edition codes like 50/51/60), and Dutch ordinals like '2e', '6e'.
     """
-    if t == "release":
+    if t in _NOISE_WORDS:
         return True
     if t.isdigit() and int(t) > 6:
+        return True
+    # Dutch ordinals: 1e, 2e, 6e, etc. (meaning 1st, 2nd, 6th edition)
+    if len(t) >= 2 and t.endswith("e") and t[:-1].isdigit():
         return True
     return False
 
@@ -316,6 +370,26 @@ def _parse_book_slug(book_slug: str) -> tuple[str, list[str], list[str], list[st
             tokens.pop()
             changed = True
 
+    # Try to split the last token if it fuses a digit with a level string, e.g.
+    # "3vwo" → strip leading digit, keep "vwo"; "gt4" → strip trailing digit, keep "gt".
+    # Only apply if the remaining part leads to a successful level match.
+    _original_last: str | None = None
+    if tokens:
+        last = tokens[-1]
+        stripped: str | None = None
+        # Trailing digit(s): e.g. "gt4" → "gt"
+        m_trail = re.match(r"^([a-z]+)(\d+)$", last)
+        if m_trail and 1 <= int(m_trail.group(2)) <= 6:
+            stripped = m_trail.group(1)
+        else:
+            # Leading digit(s): e.g. "3vwo" → "vwo"
+            m_lead = re.match(r"^(\d+)([a-z]+)$", last)
+            if m_lead and 1 <= int(m_lead.group(1)) <= 6:
+                stripped = m_lead.group(2)
+        if stripped is not None:
+            _original_last = last
+            tokens[-1] = stripped
+
     # Match longest known level suffix
     level_tokens: list[str] = []
     for pattern, _ in KNOWN_LEVEL_PATTERNS:
@@ -324,6 +398,10 @@ def _parse_book_slug(book_slug: str) -> tuple[str, list[str], list[str], list[st
             level_tokens = pattern
             tokens = tokens[:-n]
             break
+
+    # If we modified the last token but it didn't help match a level, restore it
+    if _original_last is not None and not level_tokens:
+        tokens[-1] = _original_last
 
     # Strip digits (1-6) sandwiched between title and level — these are school years
     year_tokens: list[str] = []
