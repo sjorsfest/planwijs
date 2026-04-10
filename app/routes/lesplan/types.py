@@ -117,6 +117,13 @@ class LesplanOverviewResponse(BaseModel):
     lessons: list[LessonPlanResponse]
 
 
+class TaskSubmittedResponse(BaseModel):
+    task_id: str
+    resource_id: str
+    task_type: str
+    status: str
+
+
 class LesplanResponse(BaseModel):
     id: str
     user_id: str

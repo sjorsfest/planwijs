@@ -1,7 +1,6 @@
 import json
 import logging
 import re
-import traceback
 from typing import Any, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,12 +14,7 @@ from app.agents.lesplan_agent import (
     KnowledgeCoverageItem,
     LesplanContext,
     LessonOutlineItem,
-    generate_lessons,
 )
-from app.agents.lesplan.feedback_agent import apply_feedback
-from app.agents.lesplan.pipeline import generate_overview
-from app.agents.preparation_agent import PreparationContext, generate_preparation_todos
-from app.database import SessionLocal
 from app.models.book import Book
 from app.models.book_chapter_paragraph import BookChapterParagraph
 from app.models.school_class import Class
@@ -31,7 +25,6 @@ from app.models.method import Method
 from app.models.subject import Subject as SubjectModel
 
 from .types import (
-    FeedbackItem,
     GoalCoverageItemResponse,
     KnowledgeCoverageItemResponse,
     LesplanOverviewResponse,
@@ -43,12 +36,6 @@ from .types import (
 )
 
 logger = logging.getLogger(__name__)
-
-_SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
-
-
-def _sse(event: str, data: Any) -> str:
-    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
 def _todo_response(todo: LessonPreparationTodo) -> LessonPreparationTodoResponse:
@@ -782,174 +769,3 @@ def _generated_overview_from_row(
     )
 
 
-async def _generate_and_persist_overview(
-    session: AsyncSession,
-    req: LesplanRequest,
-) -> None:
-    """Generate the initial overview and persist it."""
-    ctx = await _build_context(session, req)
-    overview = await generate_overview(ctx)
-    await _persist_overview(session, req.id, overview.model_dump(mode="json"))
-    req.status = LesplanStatus.OVERVIEW_READY
-    await session.commit()
-    await session.refresh(req)
-    logger.info("Overview generated for lesplan %s", req.id)
-
-
-async def _submit_feedback(
-    session: AsyncSession,
-    req: LesplanRequest,
-    feedback_items: list[FeedbackItem],
-) -> None:
-    """Apply structured feedback to the overview using the feedback agent."""
-    overview = await _fetch_overview(session, req.id)
-    if overview is None:
-        raise NotFoundError("Overview not found")
-
-    ctx = await _build_context(session, req)
-    current_overview = _generated_overview_from_row(
-        overview,
-        num_lessons=req.num_lessons,
-        paragraph_count=len(req.selected_paragraph_ids),
-    )
-
-    items_dicts = [
-        {
-            "field_name": item.field_name,
-            "specific_part": item.specific_part,
-            "user_feedback": item.user_feedback,
-        }
-        for item in feedback_items
-    ]
-
-    updated_fields = await apply_feedback(ctx, current_overview, items_dicts)
-
-    # Merge updated fields into the existing overview payload
-    current_payload = _raw_overview_payload_from_row(overview)
-    current_payload.update(updated_fields)
-
-    # Re-persist with normalization
-    await _persist_overview(session, req.id, current_payload)
-    req.status = LesplanStatus.OVERVIEW_READY
-    await session.commit()
-    await session.refresh(req)
-
-    logger.info("Feedback applied for lesplan %s, updated fields: %s", req.id, list(updated_fields.keys()))
-
-
-async def _run_lessons_generation(request_id: str) -> None:
-    try:
-        # Phase 1: fetch data (short-lived session)
-        async with SessionLocal() as session:
-            req = await session.get(LesplanRequest, request_id)
-            if req is None:
-                logger.error("LesplanRequest %s not found for lesson generation", request_id)
-                return
-
-            overview = await _fetch_overview(session, request_id)
-            if overview is None:
-                raise ValueError(f"No overview found for request {request_id}")
-
-            ctx = await _build_context(session, req)
-            approved_overview = _generated_overview_from_row(
-                overview,
-                num_lessons=req.num_lessons,
-                paragraph_count=len(req.selected_paragraph_ids),
-            )
-            overview_id = overview.id
-            selected_paragraph_ids = list(req.selected_paragraph_ids)
-
-        # Phase 2: AI generation (no DB connection held)
-        generated_lessons = await generate_lessons(ctx, approved_overview)
-
-        # Phase 3: persist each lesson (short-lived sessions)
-        total_todos = 0
-        for lesson in generated_lessons:
-            covered_ids = [
-                selected_paragraph_ids[idx]
-                for idx in lesson.covered_paragraph_indices
-                if 0 <= idx < len(selected_paragraph_ids)
-            ]
-
-            # Generate preparation todos (no DB connection held)
-            todos = []
-            try:
-                prep_ctx = PreparationContext(
-                    lesson_number=lesson.lesson_number,
-                    title=lesson.title,
-                    learning_objectives=lesson.learning_objectives,
-                    time_sections=[s.model_dump(mode="json") for s in lesson.time_sections],
-                    required_materials=lesson.required_materials,
-                    teacher_notes=lesson.teacher_notes,
-                )
-                todos = await generate_preparation_todos(prep_ctx)
-                total_todos += len(todos)
-                logger.info(
-                    "Generated %d preparation todos for lesson %d (%s)",
-                    len(todos),
-                    lesson.lesson_number,
-                    lesson.title,
-                )
-            except Exception:
-                logger.error(
-                    "Preparation todo generation failed for lesson %d:\n%s",
-                    lesson.lesson_number,
-                    traceback.format_exc(),
-                )
-
-            # Save lesson + todos (short-lived session)
-            async with SessionLocal() as session:
-                lesson_plan = LessonPlan(
-                    overview_id=overview_id,
-                    lesson_number=lesson.lesson_number,
-                    title=lesson.title,
-                    learning_objectives=lesson.learning_objectives,
-                    time_sections=[section.model_dump(mode="json") for section in lesson.time_sections],
-                    required_materials=lesson.required_materials,
-                    covered_paragraph_ids=covered_ids,
-                    teacher_notes=lesson.teacher_notes,
-                )
-                session.add(lesson_plan)
-                await session.flush()
-
-                for todo in todos:
-                    session.add(
-                        LessonPreparationTodo(
-                            lesson_plan_id=lesson_plan.id,
-                            title=todo.title,
-                            description=todo.description,
-                            why=todo.why,
-                        )
-                    )
-                await session.commit()
-                logger.info(
-                    "Committed lesson %d/%d with todos for request %s",
-                    lesson.lesson_number,
-                    len(generated_lessons),
-                    request_id,
-                )
-
-        async with SessionLocal() as session:
-            req = await session.get(LesplanRequest, request_id)
-            if req is not None:
-                req.status = LesplanStatus.COMPLETED
-                await session.commit()
-        logger.info(
-            "All lessons completed: %d todos total for request %s",
-            total_todos,
-            request_id,
-        )
-    except Exception:
-        logger.error(
-            "Lesson generation failed for request %s:\n%s",
-            request_id,
-            traceback.format_exc(),
-        )
-        try:
-            async with SessionLocal() as session:
-                req = await session.get(LesplanRequest, request_id)
-                if req is not None:
-                    req.status = LesplanStatus.FAILED
-                    await session.commit()
-        except Exception:
-            logger.error("Failed to mark lesplan %s as FAILED", request_id)

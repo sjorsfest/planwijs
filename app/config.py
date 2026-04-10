@@ -21,11 +21,17 @@ class Settings(BaseSettings):
     oauth_state_secret: str
     openrouter_api_key: str
 
+    redis_url: str = "redis://localhost:6379/0"
+    redis_task_ttl_seconds: int = 3600
+
     cloudflare_r2_account_id: str = ""
     cloudflare_r2_access_key_id: str = ""
     cloudflare_r2_secret_access_key: str = ""
-    cloudflare_r2_bucket: str = ""
+    cloudflare_r2_region: str = "auto"
+    cloudflare_r2_public_bucket: str = ""
     cloudflare_r2_public_url: str = ""
+    cloudflare_r2_private_bucket: str = "leslab-private"
+    signed_url_ttl_seconds: int = 3600
 
 
 settings = Settings()  # type: ignore[call-arg]  # pydantic-settings loads from .env

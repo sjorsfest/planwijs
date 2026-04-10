@@ -7,6 +7,7 @@ from app.models.book_chapter import BookChapter
 from app.models.book_chapter_paragraph import BookChapterParagraph
 from app.models.school_class import Class
 from app.models.classroom import ClassroomBase, ClassroomCreate, Classroom
+from app.models.file import File, FileBucket
 from app.models.lesplan import LesplanRequest, LesplanOverview, LessonPlan
 
 __all__ = [
@@ -15,5 +16,6 @@ __all__ = [
     "Method", "Book", "BookChapter", "BookChapterParagraph", "Class",
     "SubjectModel",
     "ClassroomBase", "ClassroomCreate", "Classroom",
+    "File", "FileBucket",
     "LesplanRequest", "LesplanOverview", "LessonPlan",
 ]

@@ -16,7 +16,9 @@
       "Bash(npx pyright:*)",
       "Bash(source .venv/bin/activate)",
       "Bash(python -m mypy app/scripts/seed_from_sitemap.py --no-error-summary)",
-      "Bash(python -m app.scripts.fix_levels --dry-run)"
+      "Bash(python -m app.scripts.fix_levels --dry-run)",
+      "Bash(find /Users/jeroenmeij/Desktop/personal/planwijs/app -type f -name \"*.py\" -exec grep -l \"Pydantic\\\\|pydantic\\\\|BaseModel\" {})",
+      "Bash(uv sync:*)"
     ]
   }
 }

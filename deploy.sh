@@ -9,6 +9,7 @@ cd "$APP_DIR"
 REMOTE="${DEPLOY_REMOTE:-origin}"
 BRANCH="${DEPLOY_BRANCH:-main}"
 SERVICE_NAME="${SERVICE_NAME:-leslab}"
+WORKER_SERVICE_NAME="${WORKER_SERVICE_NAME:-leslab-worker}"
 CLOUDFLARED_SERVICE="${CLOUDFLARED_SERVICE:-cloudflared}"
 RESTART_CLOUDFLARED="${RESTART_CLOUDFLARED:-0}"
 
@@ -133,6 +134,15 @@ if ! run_systemctl is-active --quiet "$SERVICE_NAME"; then
     log "Service failed to become active: $SERVICE_NAME"
     show_service_logs "$SERVICE_NAME"
     fail "Deployment failed during service restart"
+fi
+
+log "Restarting worker service: $WORKER_SERVICE_NAME"
+run_systemctl restart "$WORKER_SERVICE_NAME"
+
+if ! run_systemctl is-active --quiet "$WORKER_SERVICE_NAME"; then
+    log "Worker service failed to become active: $WORKER_SERVICE_NAME"
+    show_service_logs "$WORKER_SERVICE_NAME"
+    fail "Deployment failed during worker restart"
 fi
 
 # --- Tunnel Sync ---

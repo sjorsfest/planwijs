@@ -98,7 +98,7 @@ def _extension_for(content_type: str, url: str) -> str:
 def _upload_to_r2(client: Any, key: str, data: bytes, content_type: str) -> str:
     """Upload to R2 and return the path (not the full URL)."""
     client.put_object(
-        Bucket=settings.cloudflare_r2_bucket,
+        Bucket=settings.cloudflare_r2_public_bucket,
         Key=key,
         Body=data,
         ContentType=content_type,

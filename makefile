@@ -1,5 +1,8 @@
 start:
-	@fastapi dev app/main.py
+	@fastapi dev app/main.py & arq app.worker.WorkerSettings & wait
+
+worker:
+	@arq app.worker.WorkerSettings
 
 
 migrate-create:
