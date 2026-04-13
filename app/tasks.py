@@ -62,7 +62,7 @@ LESSONS_STEPS = [
 ]
 
 
-async def _get_redis() -> Redis:  # type: ignore[type-arg]
+async def _get_redis() -> Redis:
     return await get_redis_pool()
 
 

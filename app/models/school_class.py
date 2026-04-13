@@ -21,7 +21,7 @@ class Class(BaseModel, table=True):
 
     @model_validator(mode="before")
     @classmethod
-    def _coerce_enums(cls, values: dict) -> dict:  # type: ignore[override]
+    def _coerce_enums(cls, values: dict) -> dict:
         if not isinstance(values, dict):
             return values
         for field, enum_cls in _ENUM_FIELDS.items():
