@@ -9,7 +9,7 @@ from app.auth import get_current_user
 from app.database import get_session
 from app.exceptions import NotFoundError
 from app.integrations.r2_store import R2Store, get_private_store
-from app.models.file import File, FileBucket
+from app.models.file import File, FileBucket, FileStatus
 from app.models.user import User
 
 router = APIRouter(prefix="/files", tags=["files"])
@@ -22,6 +22,7 @@ class FileUploadRequest(PydanticBaseModel):
     filename: str
     content_type: str
     size_bytes: int
+    folder_id: Optional[str] = None
     lesplan_request_id: Optional[str] = None
 
 
@@ -33,13 +34,20 @@ class FileUploadResponse(PydanticBaseModel):
     object_key: str
 
 
+class FileMoveRequest(PydanticBaseModel):
+    folder_id: Optional[str] = None
+
+
 class FileRead(PydanticBaseModel):
     id: str
     name: str
     content_type: str
     size_bytes: int
     bucket: FileBucket
+    status: FileStatus
+    folder_id: Optional[str]
     lesplan_request_id: Optional[str]
+    has_extracted_text: bool
     created_at: str
     url: str
 
@@ -70,6 +78,7 @@ async def create_upload_url(
         size_bytes=body.size_bytes,
         bucket=FileBucket.PRIVATE,
         object_key=object_key,
+        folder_id=body.folder_id,
         lesplan_request_id=body.lesplan_request_id,
     )
     session.add(file)
@@ -87,12 +96,18 @@ async def create_upload_url(
 
 @router.get("/", response_model=list[FileRead])
 async def list_files(
+    folder_id: Optional[str] = None,
     lesplan_request_id: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> list[FileRead]:
-    """List files for the current user, optionally filtered by lesplan request."""
-    stmt = select(File).where(File.user_id == current_user.id)
+    """List files for the current user, optionally filtered by folder or lesplan request."""
+    stmt = select(File).where(
+        File.user_id == current_user.id,
+        File.status == FileStatus.UPLOADED,
+    )
+    if folder_id is not None:
+        stmt = stmt.where(File.folder_id == folder_id)
     if lesplan_request_id:
         stmt = stmt.where(File.lesplan_request_id == lesplan_request_id)
     stmt = stmt.order_by(File.created_at.desc())  # type: ignore[union-attr]
@@ -121,6 +136,51 @@ async def get_file(
     return _file_to_read(file, store)
 
 
+@router.post("/{file_id}/confirm-upload", response_model=FileRead)
+async def confirm_upload(
+    file_id: str,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> FileRead:
+    """Confirm that the file was uploaded to R2. Sets status to UPLOADED and triggers text extraction."""
+    from app.services.file_extraction import extract_text
+
+    stmt = select(File).where(File.id == file_id, File.user_id == current_user.id)
+    result = await session.execute(stmt)
+    file = result.scalar_one_or_none()
+    if not file:
+        raise NotFoundError("File not found")
+
+    file.status = FileStatus.UPLOADED
+    store = _store_for_bucket(file.bucket)
+    extracted = await extract_text(store, file.object_key, file.content_type)
+    if extracted is not None:
+        file.extracted_text = extracted
+
+    session.add(file)
+    await session.commit()
+    await session.refresh(file)
+
+    return _file_to_read(file, store)
+
+
+@router.post("/{file_id}/upload-failed", status_code=204)
+async def mark_upload_failed(
+    file_id: str,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> None:
+    """Mark a file upload as failed. Cleans up the file record."""
+    stmt = select(File).where(File.id == file_id, File.user_id == current_user.id)
+    result = await session.execute(stmt)
+    file = result.scalar_one_or_none()
+    if not file:
+        raise NotFoundError("File not found")
+
+    await session.delete(file)
+    await session.commit()
+
+
 @router.delete("/{file_id}", status_code=204)
 async def delete_file(
     file_id: str,
@@ -141,6 +201,38 @@ async def delete_file(
     await session.commit()
 
 
+@router.patch("/{file_id}/move", response_model=FileRead)
+async def move_file(
+    file_id: str,
+    body: FileMoveRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> FileRead:
+    """Move a file to a different folder (or root if folder_id is null)."""
+    stmt = select(File).where(File.id == file_id, File.user_id == current_user.id)
+    result = await session.execute(stmt)
+    file = result.scalar_one_or_none()
+    if not file:
+        raise NotFoundError("File not found")
+
+    if body.folder_id:
+        from app.models.folder import Folder
+        folder_stmt = select(Folder).where(
+            Folder.id == body.folder_id, Folder.user_id == current_user.id
+        )
+        folder_result = await session.execute(folder_stmt)
+        if not folder_result.scalar_one_or_none():
+            raise NotFoundError("Folder not found")
+
+    file.folder_id = body.folder_id
+    session.add(file)
+    await session.commit()
+    await session.refresh(file)
+
+    store = _store_for_bucket(file.bucket)
+    return _file_to_read(file, store)
+
+
 # --- Helpers ---
 
 
@@ -158,7 +250,10 @@ def _file_to_read(file: File, store: R2Store) -> FileRead:
         content_type=file.content_type,
         size_bytes=file.size_bytes,
         bucket=file.bucket,
+        status=file.status,
+        folder_id=file.folder_id,
         lesplan_request_id=file.lesplan_request_id,
+        has_extracted_text=bool(file.extracted_text),
         created_at=file.created_at.isoformat(),
         url=store.get_access_url(file.object_key),
     )

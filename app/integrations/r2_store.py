@@ -142,6 +142,14 @@ class R2Store:
             object_key=object_key, ttl_seconds=ttl_seconds
         )
 
+    def download_object(self, object_key: str) -> bytes:
+        """Download an object's content from the bucket."""
+        self._validate_config()
+        client = self._get_client()
+        assert self.bucket_name is not None
+        response = client.get_object(Bucket=self.bucket_name, Key=object_key)
+        return response["Body"].read()
+
     def delete_object(self, object_key: str) -> None:
         """Delete an object from the bucket."""
         self._validate_config()

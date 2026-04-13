@@ -12,7 +12,7 @@ from app.database import check_db_health, dispose_engine
 from app.logging_config import configure_logging
 from app.middleware import RequestContextMiddleware, register_error_handlers
 from app.redis import close_redis_pool, get_arq_redis_settings
-from app.routes import auth, books, calendar, classes, classrooms, files, lesplan, methods, subjects, users
+from app.routes import auth, books, calendar, classes, classrooms, files, folders, lesplan, methods, subjects, users
 from app.routes import tasks as tasks_routes
 
 configure_logging(debug=settings.debug)
@@ -58,6 +58,7 @@ app.include_router(subjects.router, dependencies=[Depends(get_current_user)])
 app.include_router(lesplan.router)
 app.include_router(lesplan.preparation_todo_router)
 app.include_router(calendar.router)
+app.include_router(folders.router, dependencies=[Depends(get_current_user)])
 app.include_router(files.router, dependencies=[Depends(get_current_user)])
 app.include_router(tasks_routes.router, dependencies=[Depends(get_current_user)])
 

@@ -9,6 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import ENUM
 
 # revision identifiers, used by Alembic.
 revision: str = '0023_create_file_table'
@@ -19,8 +20,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    file_bucket = sa.Enum('public', 'private', name='file_bucket')
-    file_bucket.create(op.get_bind(), checkfirst=True)
+    op.execute("DO $$ BEGIN CREATE TYPE file_bucket AS ENUM ('PUBLIC', 'PRIVATE'); EXCEPTION WHEN duplicate_object THEN NULL; END $$")
 
     op.create_table(
         'file',
@@ -31,7 +31,7 @@ def upgrade() -> None:
         sa.Column('name', sa.String(), nullable=False),
         sa.Column('content_type', sa.String(), nullable=False),
         sa.Column('size_bytes', sa.Integer(), nullable=False),
-        sa.Column('bucket', file_bucket, nullable=False),
+        sa.Column('bucket', ENUM('PUBLIC', 'PRIVATE', name='file_bucket', create_type=False), nullable=False),
         sa.Column('object_key', sa.String(), nullable=False),
         sa.Column('lesplan_request_id', sa.String(), nullable=True),
         sa.ForeignKeyConstraint(['user_id'], ['user.id']),
