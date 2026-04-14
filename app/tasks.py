@@ -24,7 +24,6 @@ from app.agents.lesplan.utils import (
     _build_sequence_prompt,
     _build_teacher_notes_prompt,
     _compose_overview_from_parts,
-    _ensure_series_summary_includes_delivery,
     _normalize_lesson_outline_for_context,
     _unique_non_empty,
     _validate_overview_for_context,
@@ -224,19 +223,6 @@ async def generate_overview_task(ctx: dict[str, Any], task_id: str, request_id: 
             _build_teacher_notes_prompt(lesplan_ctx, identity_data, sequence_struct, learning_goals)
         )
         teacher_notes = teacher_result.output
-
-        series_summary = _ensure_series_summary_includes_delivery(
-            series_summary=identity_data.series_summary,
-            learning_progression=teacher_notes.learning_progression.strip(),
-            recommended_approach=teacher_notes.recommended_approach.strip(),
-            didactic_approach=teacher_notes.didactic_approach.strip(),
-            ctx=lesplan_ctx,
-        )
-        identity_data = GeneratedOverviewIdentity(
-            title=identity_data.title,
-            series_summary=series_summary,
-            series_themes=identity_data.series_themes,
-        )
 
         overview = _compose_overview_from_parts(
             lesplan_ctx,
