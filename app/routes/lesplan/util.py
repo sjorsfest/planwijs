@@ -21,6 +21,7 @@ from app.models.school_class import Class
 from app.models.enums import LesplanStatus
 from app.models.lesplan import LesplanOverview, LesplanRequest, LessonPlan, LessonPreparationTodo
 from app.models.classroom import Classroom
+from app.models.file import File, FileStatus
 from app.models.method import Method
 from app.models.subject import Subject as SubjectModel
 
@@ -595,6 +596,24 @@ async def _build_context(session: AsyncSession, req: LesplanRequest) -> LesplanC
     if len(ordered_paragraphs) != len(req.selected_paragraph_ids):
         raise ValueError("Some selected paragraphs could not be loaded")
 
+    file_results = await session.execute(
+        select(File).where(
+            File.lesplan_request_id == req.id,
+            File.status == FileStatus.UPLOADED,
+            File.extracted_text.isnot(None),  # type: ignore[union-attr]
+        )
+    )
+    file_texts: list[dict[str, str]] | None = None
+    files_with_text = file_results.scalars().all()
+    if files_with_text:
+        file_texts = [
+            {"name": f.name, "text": f.extracted_text}
+            for f in files_with_text
+            if f.extracted_text and f.extracted_text.strip()
+        ]
+        if not file_texts:
+            file_texts = None
+
     return LesplanContext(
         book_title=book.title,
         book_subject=subject_name,
@@ -610,6 +629,7 @@ async def _build_context(session: AsyncSession, req: LesplanRequest) -> LesplanC
         num_lessons=req.num_lessons,
         lesson_duration_minutes=req.lesson_duration_minutes,
         classroom_assets=classroom_assets,
+        file_texts=file_texts,
     )
 
 

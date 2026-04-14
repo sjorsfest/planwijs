@@ -16,6 +16,28 @@ from .types import (
     LessonOutlineItem,
 )
 
+def _build_file_context_block(ctx: LesplanContext) -> str:
+    if not ctx.file_texts:
+        return ""
+    file_sections = []
+    for file_info in ctx.file_texts:
+        name = file_info["name"]
+        text = file_info["text"].strip()
+        file_sections.append(f"#### Bestand: {name}\n{text}")
+    files_content = "\n\n".join(file_sections)
+    return (
+        "\n                ### 5. AANVULLENDE DOCUMENTEN (door de docent aangeleverd)\n"
+        "                De docent heeft onderstaande documenten bijgevoegd als extra context.\n"
+        "                Deze documenten kunnen van alles bevatten: richtlijnen voor leerdoelen, "
+        "aanvullende vakinformatie, schoolbeleid, differentiatie-instructies, etc.\n"
+        "                Gebruik de inhoud ALLEEN wanneer deze direct relevant is voor het "
+        "onderwerp, de leerdoelen, de didactische aanpak of de lesopbouw.\n"
+        "                Negeer informatie die niet gerelateerd is aan de te behandelen stof "
+        "of de context van deze lessenreeks.\n"
+        f"                {files_content}\n"
+    )
+
+
 def _build_context_block(ctx: LesplanContext) -> str:
     difficulty_descriptions = {
         "Groen": "Groen (goed hanteerbaar)",
@@ -83,6 +105,7 @@ def _build_context_block(ctx: LesplanContext) -> str:
                 ### 4. TE BEHANDELEN STOF (Geselecteerde paragrafen)
                 Koppel deze paragrafen aan de specifieke lessen. Gebruik het aangegeven Index-nummer (0, 1, etc.) als referentie voor het veld 'covered_paragraph_indices'.
                 {paragraph_lines}
+{_build_file_context_block(ctx)}
         """
 
 

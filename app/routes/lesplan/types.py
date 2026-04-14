@@ -11,6 +11,8 @@ class CreateLesplanRequest(BaseModel):
     selected_paragraph_ids: list[str] = Field(min_length=1)
     num_lessons: int = Field(ge=1)
     lesson_duration_minutes: int = Field(ge=1)
+    classroom_id: str | None = None
+    file_ids: list[str] = Field(default_factory=list)
 
 
 class FeedbackItem(BaseModel):

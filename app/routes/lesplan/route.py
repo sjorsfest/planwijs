@@ -13,6 +13,8 @@ from app.exceptions import ConflictError, NotFoundError, ValidationError
 from app.models.book import Book
 from app.models.book_chapter import BookChapter
 from app.models.book_chapter_paragraph import BookChapterParagraph
+from app.models.classroom import Classroom
+from app.models.file import File
 from app.models.school_class import Class
 from app.models.enums import LesplanStatus
 from app.models.lesplan import LesplanRequest
@@ -102,6 +104,24 @@ async def create_lesplan(
             f"Paragraph IDs do not belong to this book or do not exist: {missing}"
         )
 
+    if data.classroom_id is not None:
+        classroom_obj = await session.get(Classroom, data.classroom_id)
+        if classroom_obj is None or classroom_obj.user_id != current_user.id:
+            raise ValidationError("Invalid classroom_id")
+
+    if data.file_ids:
+        file_results = await session.execute(
+            select(File)
+            .where(File.id.in_(data.file_ids))  # type: ignore[union-attr]
+            .where(File.user_id == current_user.id)
+        )
+        found_files = list(file_results.scalars().all())
+        missing_file_ids = set(data.file_ids) - {f.id for f in found_files}
+        if missing_file_ids:
+            raise ValidationError(
+                f"File IDs not found or not owned by user: {sorted(missing_file_ids)}"
+            )
+
     req = LesplanRequest(
         user_id=current_user.id,
         class_id=data.class_id,
@@ -109,9 +129,16 @@ async def create_lesplan(
         selected_paragraph_ids=data.selected_paragraph_ids,
         num_lessons=data.num_lessons,
         lesson_duration_minutes=data.lesson_duration_minutes,
+        classroom_id=data.classroom_id,
         status=LesplanStatus.PENDING,
     )
     session.add(req)
+    await session.flush()
+
+    if data.file_ids:
+        for file in found_files:
+            file.lesplan_request_id = req.id
+
     await session.commit()
     await session.refresh(req)
 

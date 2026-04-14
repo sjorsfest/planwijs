@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, List, Optional
 
 from pydantic import ConfigDict, computed_field, field_validator
-from sqlalchemy import Column, event
+from sqlalchemy import Column, ForeignKey, String, event
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import attributes
 from sqlmodel import Field, Relationship
@@ -53,8 +53,14 @@ class Book(BaseModel, table=True):
     book_id: Optional[int] = None
     slug: str = Field(index=True)
     title: str
-    subject_id: Optional[str] = Field(default=None, foreign_key="subjects.id", index=True)
-    method_id: Optional[str] = Field(default=None, foreign_key="method.id")
+    subject_id: Optional[str] = Field(
+        default=None,
+        sa_column=Column(String, ForeignKey("subjects.id", ondelete="SET NULL"), nullable=True, index=True),
+    )
+    method_id: Optional[str] = Field(
+        default=None,
+        sa_column=Column(String, ForeignKey("method.id", ondelete="SET NULL"), nullable=True),
+    )
     edition: Optional[str] = None
     school_years: List[SchoolYear] = Field(
         default_factory=list,

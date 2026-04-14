@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Any, List, Optional
 
-from sqlalchemy import Column, Date
+from sqlalchemy import Column, Date, ForeignKey, String
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship
@@ -12,10 +12,19 @@ from app.models.enums import LesplanStatus, LessonPreparationStatus
 class LesplanRequest(BaseModel, table=True):
     __tablename__ = "lesplan_request"
 
-    user_id: str = Field(foreign_key="user.id", index=True)
-    class_id: str = Field(foreign_key="class.id", index=True)
-    book_id: str = Field(foreign_key="book.id", index=True)
-    classroom_id: Optional[str] = Field(default=None, foreign_key="classroom.id", index=True)
+    user_id: str = Field(
+        sa_column=Column(String, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
+    )
+    class_id: str = Field(
+        sa_column=Column(String, ForeignKey("class.id", ondelete="CASCADE"), nullable=False, index=True)
+    )
+    book_id: str = Field(
+        sa_column=Column(String, ForeignKey("book.id", ondelete="CASCADE"), nullable=False, index=True)
+    )
+    classroom_id: Optional[str] = Field(
+        default=None,
+        sa_column=Column(String, ForeignKey("classroom.id", ondelete="CASCADE"), nullable=True, index=True),
+    )
     selected_paragraph_ids: List[str] = Field(
         default_factory=list,
         sa_column=Column("selected_paragraph_ids", JSONB, nullable=False, server_default="[]"),
@@ -36,7 +45,9 @@ class LesplanRequest(BaseModel, table=True):
 class LesplanOverview(BaseModel, table=True):
     __tablename__ = "lesplan_overview"
 
-    request_id: str = Field(foreign_key="lesplan_request.id", unique=True, index=True)
+    request_id: str = Field(
+        sa_column=Column(String, ForeignKey("lesplan_request.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    )
     title: str
     series_summary: str
     series_themes: List[str] = Field(
@@ -74,7 +85,9 @@ class LesplanOverview(BaseModel, table=True):
 class LessonPlan(BaseModel, table=True):
     __tablename__ = "lesson_plan"
 
-    overview_id: str = Field(foreign_key="lesplan_overview.id", index=True)
+    overview_id: str = Field(
+        sa_column=Column(String, ForeignKey("lesplan_overview.id", ondelete="CASCADE"), nullable=False, index=True)
+    )
     lesson_number: int = Field(ge=1)
     planned_date: Optional[date] = Field(
         default=None,
@@ -106,7 +119,9 @@ class LessonPlan(BaseModel, table=True):
 class LessonPreparationTodo(BaseModel, table=True):
     __tablename__ = "lesson_preparation_todo"
 
-    lesson_plan_id: str = Field(foreign_key="lesson_plan.id", index=True)
+    lesson_plan_id: str = Field(
+        sa_column=Column(String, ForeignKey("lesson_plan.id", ondelete="CASCADE"), nullable=False, index=True)
+    )
     title: str
     description: str
     why: str

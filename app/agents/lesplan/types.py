@@ -211,3 +211,4 @@ class LesplanContext:
     support_challenge: str | None = None
     class_notes: str | None = None
     classroom_assets: list[str] | None = None
+    file_texts: list[dict[str, str]] | None = None

@@ -18,7 +18,11 @@
       "Bash(python -m mypy app/scripts/seed_from_sitemap.py --no-error-summary)",
       "Bash(python -m app.scripts.fix_levels --dry-run)",
       "Bash(find /Users/jeroenmeij/Desktop/personal/planwijs/app -type f -name \"*.py\" -exec grep -l \"Pydantic\\\\|pydantic\\\\|BaseModel\" {})",
-      "Bash(uv sync:*)"
+      "Bash(uv sync:*)",
+      "Bash(python -m mypy app/routes/lesplan/types.py app/routes/lesplan/route.py --no-error-summary)",
+      "Bash(.venv/bin/python -c \"from app.routes.lesplan.types import CreateLesplanRequest; print\\(CreateLesplanRequest.model_fields.keys\\(\\)\\)\")",
+      "Bash(.venv/bin/python -c \"from app.routes.lesplan.route import router; print\\(''Route module loads OK''\\)\")",
+      "Bash(python -c \"from app.models.file import File, FileStatus; print\\(''OK''\\)\")"
     ]
   }
 }

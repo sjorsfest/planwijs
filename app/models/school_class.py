@@ -1,7 +1,8 @@
 from typing import Optional
 
 from pydantic import model_validator
-from sqlalchemy import Column, Enum as SAEnum
+from sqlalchemy import Column, ForeignKey, String
+from sqlalchemy import Enum as SAEnum
 from sqlmodel import Field
 
 from app.models.base import BaseModel
@@ -30,7 +31,9 @@ class Class(BaseModel, table=True):
                 values[field] = enum_cls(v)
         return values
 
-    user_id: str = Field(foreign_key="user.id", index=True)
+    user_id: str = Field(
+        sa_column=Column(String, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
+    )
     name: str
     subject: Subject = Field(
         default=Subject.UNKNOWN,
