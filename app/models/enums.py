@@ -89,3 +89,19 @@ class LesplanStatus(str, Enum):
 class LessonPreparationStatus(str, Enum):
     PENDING = "pending"
     DONE = "done"
+
+
+class UserRole(str, Enum):
+    USER = "USER"
+    ADMIN = "ADMIN"
+
+
+class OrganizationRole(str, Enum):
+    ADMIN = "ADMIN"
+    MEMBER = "MEMBER"
+
+
+class InviteStatus(str, Enum):
+    PENDING = "PENDING"
+    ACCEPTED = "ACCEPTED"
+    DECLINED = "DECLINED"

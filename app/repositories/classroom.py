@@ -3,11 +3,13 @@ from sqlmodel import select
 
 from app.models.school_class import Class
 from app.models.enums import ClassDifficulty, Level, SchoolYear, Subject
+from app.services.visibility import visible_filter
 
 
-async def list_for_user(
+async def list_visible(
     session: AsyncSession,
     user_id: str,
+    org_id: str | None,
     *,
     subject: Subject | None = None,
     level: Level | None = None,
@@ -16,7 +18,7 @@ async def list_for_user(
 ) -> list[Class]:
     stmt = (
         select(Class)
-        .where(Class.user_id == user_id)
+        .where(visible_filter(Class, user_id, org_id))
         .order_by(Class.created_at.desc())  # type: ignore[union-attr]
     )
     if subject is not None:

@@ -302,7 +302,7 @@ def _normalize_lesson_outline(
 
         lesson_number_raw = raw.get("lesson_number")
         try:
-            lesson_number = int(lesson_number_raw)
+            lesson_number = int(lesson_number_raw)  # type: ignore[arg-type]
         except (TypeError, ValueError):
             lesson_number = index + 1
         if lesson_number < 1:
@@ -614,6 +614,25 @@ async def _build_context(session: AsyncSession, req: LesplanRequest) -> LesplanC
         if not file_texts:
             file_texts = None
 
+    # Fetch files linked to the class (extra context documents)
+    class_file_results = await session.execute(
+        select(File).where(
+            File.class_id == classroom.id,  # type: ignore[union-attr]
+            File.status == FileStatus.UPLOADED,
+            File.extracted_text.isnot(None),  # type: ignore[union-attr]
+        )
+    )
+    class_file_texts: list[dict[str, str]] | None = None
+    class_files_with_text = class_file_results.scalars().all()
+    if class_files_with_text:
+        class_file_texts = [
+            {"name": f.name, "text": f.extracted_text}
+            for f in class_files_with_text
+            if f.extracted_text and f.extracted_text.strip()
+        ]
+        if not class_file_texts:
+            class_file_texts = None
+
     return LesplanContext(
         book_title=book.title,
         book_subject=subject_name,
@@ -630,6 +649,7 @@ async def _build_context(session: AsyncSession, req: LesplanRequest) -> LesplanC
         lesson_duration_minutes=req.lesson_duration_minutes,
         classroom_assets=classroom_assets,
         file_texts=file_texts,
+        class_file_texts=class_file_texts,
     )
 
 

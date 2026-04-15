@@ -18,7 +18,7 @@ _ENUM_FIELDS: dict[str, type] = {
 
 
 class Class(BaseModel, table=True):
-    __tablename__ = "class"
+    __tablename__ = "class"  # type: ignore[assignment]
 
     @model_validator(mode="before")
     @classmethod
@@ -75,4 +75,8 @@ class Class(BaseModel, table=True):
     class_notes: Optional[str] = Field(
         default=None,
         description="Vrije notities van de docent over de klas (bijv. bijzonderheden, werkhouding, samenstelling).",
+    )
+    organization_id: Optional[str] = Field(
+        default=None,
+        sa_column=Column(String, ForeignKey("organization.id", ondelete="SET NULL"), nullable=True, index=True),
     )

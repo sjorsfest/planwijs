@@ -9,6 +9,7 @@ from app.models.school_class import Class
 from app.models.enums import ClassDifficulty, Level, SchoolYear, Subject
 from app.models.user import User
 from app.services import classroom as classroom_service
+from app.services.visibility import get_user_org_id
 
 router = APIRouter(prefix="/classes", tags=["classes"])
 
@@ -16,13 +17,16 @@ router = APIRouter(prefix="/classes", tags=["classes"])
 @router.get("/", response_model=list[Class])
 async def list_classes(
     current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
     subject: Optional[Subject] = Query(default=None),
     level: Optional[Level] = Query(default=None),
     school_year: Optional[SchoolYear] = Query(default=None),
     difficulty: Optional[ClassDifficulty] = Query(default=None),
 ) -> list[Class]:
+    org_id = await get_user_org_id(session, current_user.id)
     return await classroom_service.list_classes(
         current_user.id,
+        org_id,
         subject=subject,
         level=level,
         school_year=school_year,
@@ -32,9 +36,12 @@ async def list_classes(
 
 @router.get("/{class_id}", response_model=Class)
 async def get_class(
-    class_id: str, current_user: User = Depends(get_current_user)
+    class_id: str,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ) -> Class:
-    return await classroom_service.get_class(current_user.id, class_id)
+    org_id = await get_user_org_id(session, current_user.id)
+    return await classroom_service.get_class(current_user.id, class_id, org_id)
 
 
 @router.post("/", response_model=Class, status_code=201)

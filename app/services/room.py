@@ -10,17 +10,19 @@ from app.repositories import room as room_repo
 logger = logging.getLogger(__name__)
 
 
-async def list_classrooms(user_id: str) -> list[Classroom]:
+async def list_classrooms(user_id: str, org_id: str | None = None) -> list[Classroom]:
     async def _op(session: AsyncSession) -> list[Classroom]:
-        return await room_repo.list_for_user(session, user_id)
+        return await room_repo.list_visible(session, user_id, org_id)
 
     return await run_read_with_retry(_op)
 
 
-async def get_classroom(user_id: str, classroom_id: str) -> Classroom:
+async def get_classroom(user_id: str, classroom_id: str, org_id: str | None = None) -> Classroom:
     async def _op(session: AsyncSession) -> Classroom:
         classroom = await room_repo.get_by_id(session, classroom_id)
-        if not classroom or classroom.user_id != user_id:
+        if not classroom:
+            raise NotFoundError("Classroom not found")
+        if classroom.user_id != user_id and classroom.organization_id != org_id:
             raise NotFoundError("Classroom not found")
         return classroom
 

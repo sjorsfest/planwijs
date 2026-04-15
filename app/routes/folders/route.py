@@ -12,6 +12,7 @@ from app.integrations.r2_store import R2Store, get_private_store
 from app.models.file import File, FileBucket, FileStatus
 from app.models.folder import Folder
 from app.models.user import User
+from app.services.visibility import get_user_org_id, visible_filter
 
 router = APIRouter(prefix="/folders", tags=["folders"])
 
@@ -62,7 +63,7 @@ async def create_folder(
     session: AsyncSession = Depends(get_session),
 ) -> FolderRead:
     if body.parent_id:
-        await _get_user_folder(session, current_user.id, body.parent_id)
+        await _get_owned_folder(session, current_user.id, body.parent_id)
 
     folder = Folder(
         user_id=current_user.id,
@@ -82,7 +83,8 @@ async def list_root_folders(
     session: AsyncSession = Depends(get_session),
 ) -> list[FolderRead]:
     """List root-level folders (no parent) with their immediate children and files."""
-    return await _get_folder_tree(session, current_user.id, parent_id=None)
+    org_id = await get_user_org_id(session, current_user.id)
+    return await _get_folder_tree(session, current_user.id, org_id, parent_id=None)
 
 
 @router.get("/{folder_id}", response_model=FolderRead)
@@ -92,9 +94,10 @@ async def get_folder(
     session: AsyncSession = Depends(get_session),
 ) -> FolderRead:
     """Get a folder with its immediate children and files."""
-    folder = await _get_user_folder(session, current_user.id, folder_id)
-    children = await _get_folder_tree(session, current_user.id, parent_id=folder.id)
-    files = await _get_folder_files(session, current_user.id, folder.id)
+    org_id = await get_user_org_id(session, current_user.id)
+    folder = await _get_visible_folder(session, current_user.id, org_id, folder_id)
+    children = await _get_folder_tree(session, current_user.id, org_id, parent_id=folder.id)
+    files = await _get_folder_files(session, current_user.id, org_id, folder.id)
     return _folder_to_read(folder, children=children, files=files)
 
 
@@ -105,13 +108,13 @@ async def update_folder(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> FolderRead:
-    folder = await _get_user_folder(session, current_user.id, folder_id)
+    folder = await _get_owned_folder(session, current_user.id, folder_id)
 
     if body.parent_id is not None:
         if body.parent_id == folder.id:
             raise ValidationError("A folder cannot be its own parent")
         if body.parent_id:
-            await _get_user_folder(session, current_user.id, body.parent_id)
+            await _get_owned_folder(session, current_user.id, body.parent_id)
             await _check_no_circular_ref(session, current_user.id, folder.id, body.parent_id)
         folder.parent_id = body.parent_id
 
@@ -122,8 +125,9 @@ async def update_folder(
     await session.commit()
     await session.refresh(folder)
 
-    children = await _get_folder_tree(session, current_user.id, parent_id=folder.id)
-    files = await _get_folder_files(session, current_user.id, folder.id)
+    org_id = await get_user_org_id(session, current_user.id)
+    children = await _get_folder_tree(session, current_user.id, org_id, parent_id=folder.id)
+    files = await _get_folder_files(session, current_user.id, org_id, folder.id)
     return _folder_to_read(folder, children=children, files=files)
 
 
@@ -134,7 +138,7 @@ async def delete_folder(
     session: AsyncSession = Depends(get_session),
 ) -> None:
     """Delete a folder. Moves contained files and subfolders to the parent (or root)."""
-    folder = await _get_user_folder(session, current_user.id, folder_id)
+    folder = await _get_owned_folder(session, current_user.id, folder_id)
 
     # Move child folders to parent
     child_folders_stmt = select(Folder).where(
@@ -163,9 +167,10 @@ async def delete_folder(
 # --- Helpers ---
 
 
-async def _get_user_folder(
+async def _get_owned_folder(
     session: AsyncSession, user_id: str, folder_id: str
 ) -> Folder:
+    """Get a folder that the user owns (for mutations)."""
     stmt = select(Folder).where(Folder.id == folder_id, Folder.user_id == user_id)
     result = await session.execute(stmt)
     folder = result.scalar_one_or_none()
@@ -174,11 +179,26 @@ async def _get_user_folder(
     return folder
 
 
+async def _get_visible_folder(
+    session: AsyncSession, user_id: str, org_id: str | None, folder_id: str
+) -> Folder:
+    """Get a folder visible to the user (own or org-shared)."""
+    stmt = select(Folder).where(
+        Folder.id == folder_id,
+        visible_filter(Folder, user_id, org_id),
+    )
+    result = await session.execute(stmt)
+    folder = result.scalar_one_or_none()
+    if not folder:
+        raise NotFoundError("Folder not found")
+    return folder
+
+
 async def _get_folder_tree(
-    session: AsyncSession, user_id: str, parent_id: str | None
+    session: AsyncSession, user_id: str, org_id: str | None, parent_id: str | None
 ) -> list[FolderRead]:
     stmt = select(Folder).where(
-        Folder.user_id == user_id,
+        visible_filter(Folder, user_id, org_id),
         Folder.parent_id == parent_id,
     ).order_by(Folder.name)
     result = await session.execute(stmt)
@@ -186,17 +206,17 @@ async def _get_folder_tree(
 
     items: list[FolderRead] = []
     for folder in folders:
-        children = await _get_folder_tree(session, user_id, parent_id=folder.id)
-        files = await _get_folder_files(session, user_id, folder.id)
+        children = await _get_folder_tree(session, user_id, org_id, parent_id=folder.id)
+        files = await _get_folder_files(session, user_id, org_id, folder.id)
         items.append(_folder_to_read(folder, children=children, files=files))
     return items
 
 
 async def _get_folder_files(
-    session: AsyncSession, user_id: str, folder_id: str
+    session: AsyncSession, user_id: str, org_id: str | None, folder_id: str
 ) -> list[FolderFileRead]:
     stmt = select(File).where(
-        File.user_id == user_id,
+        visible_filter(File, user_id, org_id),
         File.folder_id == folder_id,
         File.status == FileStatus.UPLOADED,
     ).order_by(File.name)
@@ -219,7 +239,7 @@ async def _check_no_circular_ref(
         visited.add(current_id)
         if current_id == folder_id:
             raise ValidationError("Moving this folder would create a circular reference")
-        parent = await _get_user_folder(session, user_id, current_id)
+        parent = await _get_owned_folder(session, user_id, current_id)
         current_id = parent.parent_id
 
 

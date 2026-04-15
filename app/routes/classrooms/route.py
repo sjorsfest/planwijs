@@ -6,6 +6,7 @@ from app.database import get_session
 from app.models.classroom import Classroom, ClassroomCreate
 from app.models.user import User
 from app.services import room as room_service
+from app.services.visibility import get_user_org_id
 
 router = APIRouter(prefix="/classrooms", tags=["classrooms"])
 
@@ -13,15 +14,20 @@ router = APIRouter(prefix="/classrooms", tags=["classrooms"])
 @router.get("/", response_model=list[Classroom])
 async def list_classrooms(
     current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ) -> list[Classroom]:
-    return await room_service.list_classrooms(current_user.id)
+    org_id = await get_user_org_id(session, current_user.id)
+    return await room_service.list_classrooms(current_user.id, org_id)
 
 
 @router.get("/{classroom_id}", response_model=Classroom)
 async def get_classroom(
-    classroom_id: str, current_user: User = Depends(get_current_user)
+    classroom_id: str,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ) -> Classroom:
-    return await room_service.get_classroom(current_user.id, classroom_id)
+    org_id = await get_user_org_id(session, current_user.id)
+    return await room_service.get_classroom(current_user.id, classroom_id, org_id)
 
 
 @router.post("/", response_model=Classroom, status_code=201)

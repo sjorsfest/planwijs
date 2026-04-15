@@ -16,6 +16,27 @@ from .types import (
     LessonOutlineItem,
 )
 
+def _build_class_file_context_block(ctx: LesplanContext) -> str:
+    if not ctx.class_file_texts:
+        return ""
+    file_sections = []
+    for file_info in ctx.class_file_texts:
+        name = file_info["name"]
+        text = file_info["text"].strip()
+        file_sections.append(f"#### Bestand: {name}\n{text}")
+    files_content = "\n\n".join(file_sections)
+    return (
+        "\n### 6. EXTRA KLASINFORMATIE (Optioneel)\n"
+        "De docent heeft aanvullende informatie gedeeld over de specifieke dynamiek van deze klas. "
+        "Je kunt deze context gebruiken om de lesopbouw en de 'teacher_notes' wat meer kleur te geven "
+        "en beter te laten aansluiten op deze specifieke groep.\n\n"
+        "Denk hierbij aan subtiele aanpassingen in:\n"
+        "* **Differentiatie:** Is er ruimte voor extra uitdaging of juist extra ondersteuning?\n"
+        "* **Sfeer en aanpak:** Zijn er leerlingen of subgroepen die een specifieke benadering vragen?\n\n"
+        "Waar logisch, verwerk dit dan in de output die je genereert.\n"
+        f"{files_content}\n"
+    )
+
 def _build_file_context_block(ctx: LesplanContext) -> str:
     if not ctx.file_texts:
         return ""
@@ -106,6 +127,7 @@ def _build_context_block(ctx: LesplanContext) -> str:
                 Koppel deze paragrafen aan de specifieke lessen. Gebruik het aangegeven Index-nummer (0, 1, etc.) als referentie voor het veld 'covered_paragraph_indices'.
                 {paragraph_lines}
 {_build_file_context_block(ctx)}
+{_build_class_file_context_block(ctx)}
         """
 
 

@@ -8,12 +8,14 @@ from app.exceptions import NotFoundError
 from app.models.school_class import Class
 from app.models.enums import ClassDifficulty, Level, SchoolYear, Subject
 from app.repositories import classroom as classroom_repo
+from app.services.visibility import visible_filter
 
 logger = logging.getLogger(__name__)
 
 
 async def list_classes(
     user_id: str,
+    org_id: str | None,
     *,
     subject: Optional[Subject] = None,
     level: Optional[Level] = None,
@@ -21,9 +23,10 @@ async def list_classes(
     difficulty: Optional[ClassDifficulty] = None,
 ) -> list[Class]:
     async def _op(session: AsyncSession) -> list[Class]:
-        return await classroom_repo.list_for_user(
+        return await classroom_repo.list_visible(
             session,
             user_id,
+            org_id,
             subject=subject,
             level=level,
             school_year=school_year,
@@ -33,10 +36,13 @@ async def list_classes(
     return await run_read_with_retry(_op)
 
 
-async def get_class(user_id: str, class_id: str) -> Class:
+async def get_class(user_id: str, class_id: str, org_id: str | None = None) -> Class:
     async def _op(session: AsyncSession) -> Class:
         classroom = await classroom_repo.get_by_id(session, class_id)
-        if not classroom or classroom.user_id != user_id:
+        if not classroom:
+            raise NotFoundError("Class not found")
+        # Visible if user owns it or it's shared via their org
+        if classroom.user_id != user_id and classroom.organization_id != org_id:
             raise NotFoundError("Class not found")
         return classroom
 

@@ -10,6 +10,7 @@ from app.auth import get_current_user
 from app.config import settings
 from app.database import get_session, run_read_with_retry
 from app.exceptions import ConflictError, NotFoundError, ValidationError
+from app.services.visibility import get_user_org_id, visible_filter
 from app.models.book import Book
 from app.models.book_chapter import BookChapter
 from app.models.book_chapter_paragraph import BookChapterParagraph
@@ -109,6 +110,7 @@ async def create_lesplan(
         if classroom_obj is None or classroom_obj.user_id != current_user.id:
             raise ValidationError("Invalid classroom_id")
 
+    found_files: list[File] = []
     if data.file_ids:
         file_results = await session.execute(
             select(File)
@@ -252,29 +254,40 @@ async def approve_lesplan(
 async def get_lesplan(
     request_id: str,
     current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ) -> LesplanResponse:
     user_id = current_user.id
+    org_id = await get_user_org_id(session, user_id)
 
-    async def operation(session: AsyncSession) -> LesplanResponse:
-        req = await session.get(LesplanRequest, request_id)
-        if req is None or req.user_id != user_id:
+    async def operation(read_session: AsyncSession) -> LesplanResponse:
+        stmt = select(LesplanRequest).where(
+            LesplanRequest.id == request_id,
+            visible_filter(LesplanRequest, user_id, org_id),
+        )
+        result = await read_session.execute(stmt)
+        req = result.scalar_one_or_none()
+        if req is None:
             raise NotFoundError("Lesplan not found")
-        return await _build_response(session, req)
+        return await _build_response(read_session, req)
 
     return await run_read_with_retry(operation)
 
 
 @router.get("/", response_model=list[LesplanResponse])
-async def list_lespannen(current_user: User = Depends(get_current_user)) -> list[LesplanResponse]:
+async def list_lespannen(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> list[LesplanResponse]:
     user_id = current_user.id
+    org_id = await get_user_org_id(session, user_id)
 
-    async def operation(session: AsyncSession) -> list[LesplanResponse]:
+    async def operation(read_session: AsyncSession) -> list[LesplanResponse]:
         stmt = (
             select(LesplanRequest)
-            .where(LesplanRequest.user_id == user_id)
+            .where(visible_filter(LesplanRequest, user_id, org_id))
             .order_by(LesplanRequest.created_at.desc())  # type: ignore[union-attr]
         )
-        result = await session.execute(stmt)
-        return [await _build_response(session, req) for req in result.scalars().all()]
+        result = await read_session.execute(stmt)
+        return [await _build_response(read_session, req) for req in result.scalars().all()]
 
     return await run_read_with_retry(operation)

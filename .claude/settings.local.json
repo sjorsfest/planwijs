@@ -22,7 +22,8 @@
       "Bash(python -m mypy app/routes/lesplan/types.py app/routes/lesplan/route.py --no-error-summary)",
       "Bash(.venv/bin/python -c \"from app.routes.lesplan.types import CreateLesplanRequest; print\\(CreateLesplanRequest.model_fields.keys\\(\\)\\)\")",
       "Bash(.venv/bin/python -c \"from app.routes.lesplan.route import router; print\\(''Route module loads OK''\\)\")",
-      "Bash(python -c \"from app.models.file import File, FileStatus; print\\(''OK''\\)\")"
+      "Bash(python -c \"from app.models.file import File, FileStatus; print\\(''OK''\\)\")",
+      "WebFetch(domain:files.pascalgunsch.nl)"
     ]
   }
 }

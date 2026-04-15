@@ -11,6 +11,7 @@ from app.exceptions import NotFoundError
 from app.integrations.r2_store import R2Store, get_private_store
 from app.models.file import File, FileBucket, FileStatus
 from app.models.user import User
+from app.services.visibility import get_user_org_id, visible_filter
 
 router = APIRouter(prefix="/files", tags=["files"])
 
@@ -24,6 +25,7 @@ class FileUploadRequest(PydanticBaseModel):
     size_bytes: int
     folder_id: Optional[str] = None
     lesplan_request_id: Optional[str] = None
+    class_id: Optional[str] = None
 
 
 class FileUploadResponse(PydanticBaseModel):
@@ -38,6 +40,10 @@ class FileMoveRequest(PydanticBaseModel):
     folder_id: Optional[str] = None
 
 
+class FileUpdateRequest(PydanticBaseModel):
+    class_id: Optional[str] = None
+
+
 class FileRead(PydanticBaseModel):
     id: str
     name: str
@@ -47,6 +53,7 @@ class FileRead(PydanticBaseModel):
     status: FileStatus
     folder_id: Optional[str]
     lesplan_request_id: Optional[str]
+    class_id: Optional[str]
     has_extracted_text: bool
     created_at: str
     url: str
@@ -80,6 +87,7 @@ async def create_upload_url(
         object_key=object_key,
         folder_id=body.folder_id,
         lesplan_request_id=body.lesplan_request_id,
+        class_id=body.class_id,
     )
     session.add(file)
     await session.commit()
@@ -98,18 +106,22 @@ async def create_upload_url(
 async def list_files(
     folder_id: Optional[str] = None,
     lesplan_request_id: Optional[str] = None,
+    class_id: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> list[FileRead]:
-    """List files for the current user, optionally filtered by folder or lesplan request."""
+    """List files visible to the current user (personal + org-shared)."""
+    org_id = await get_user_org_id(session, current_user.id)
     stmt = select(File).where(
-        File.user_id == current_user.id,
+        visible_filter(File, current_user.id, org_id),
         File.status == FileStatus.UPLOADED,
     )
     if folder_id is not None:
         stmt = stmt.where(File.folder_id == folder_id)
     if lesplan_request_id:
         stmt = stmt.where(File.lesplan_request_id == lesplan_request_id)
+    if class_id:
+        stmt = stmt.where(File.class_id == class_id)
     stmt = stmt.order_by(File.created_at.desc())  # type: ignore[union-attr]
 
     result = await session.execute(stmt)
@@ -126,7 +138,8 @@ async def get_file(
     session: AsyncSession = Depends(get_session),
 ) -> FileRead:
     """Get a single file with a fresh access URL."""
-    stmt = select(File).where(File.id == file_id, File.user_id == current_user.id)
+    org_id = await get_user_org_id(session, current_user.id)
+    stmt = select(File).where(File.id == file_id, visible_filter(File, current_user.id, org_id))
     result = await session.execute(stmt)
     file = result.scalar_one_or_none()
     if not file:
@@ -233,6 +246,38 @@ async def move_file(
     return _file_to_read(file, store)
 
 
+@router.patch("/{file_id}", response_model=FileRead)
+async def update_file(
+    file_id: str,
+    body: FileUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> FileRead:
+    """Update file metadata (e.g. link/unlink a class)."""
+    stmt = select(File).where(File.id == file_id, File.user_id == current_user.id)
+    result = await session.execute(stmt)
+    file = result.scalar_one_or_none()
+    if not file:
+        raise NotFoundError("File not found")
+
+    if body.class_id is not None:
+        from app.models.school_class import Class
+        class_stmt = select(Class).where(
+            Class.id == body.class_id, Class.user_id == current_user.id
+        )
+        class_result = await session.execute(class_stmt)
+        if not class_result.scalar_one_or_none():
+            raise NotFoundError("Class not found")
+
+    file.class_id = body.class_id
+    session.add(file)
+    await session.commit()
+    await session.refresh(file)
+
+    store = _store_for_bucket(file.bucket)
+    return _file_to_read(file, store)
+
+
 # --- Helpers ---
 
 
@@ -253,6 +298,7 @@ def _file_to_read(file: File, store: R2Store) -> FileRead:
         status=file.status,
         folder_id=file.folder_id,
         lesplan_request_id=file.lesplan_request_id,
+        class_id=file.class_id,
         has_extracted_text=bool(file.extracted_text),
         created_at=file.created_at.isoformat(),
         url=store.get_access_url(file.object_key),

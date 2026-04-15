@@ -2,12 +2,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.models.classroom import Classroom
+from app.services.visibility import visible_filter
 
 
-async def list_for_user(session: AsyncSession, user_id: str) -> list[Classroom]:
+async def list_visible(
+    session: AsyncSession, user_id: str, org_id: str | None
+) -> list[Classroom]:
     result = await session.execute(
         select(Classroom)
-        .where(Classroom.user_id == user_id)
+        .where(visible_filter(Classroom, user_id, org_id))
         .order_by(Classroom.created_at.desc())  # type: ignore[union-attr]
     )
     return list(result.scalars().all())

@@ -49,7 +49,7 @@ def _coerce_levels(values: object) -> list[Level]:
 
 
 class Book(BaseModel, table=True):
-    model_config = ConfigDict(validate_assignment=True)
+    model_config = ConfigDict(validate_assignment=True)  # type: ignore[assignment]
     book_id: Optional[int] = None
     slug: str = Field(index=True)
     title: str

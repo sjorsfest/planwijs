@@ -95,7 +95,7 @@ def _extract_pdf(data: bytes) -> str:
     with pymupdf.open(stream=data, filetype="pdf") as doc:
         for page in doc:
             text = page.get_text()
-            if text and text.strip():
+            if isinstance(text, str) and text.strip():
                 pages.append(text.strip())
     return "\n\n".join(pages)
 
@@ -117,7 +117,7 @@ def _extract_pptx(data: bytes) -> str:
         texts: list[str] = []
         for shape in slide.shapes:
             if shape.has_text_frame:
-                for paragraph in shape.text_frame.paragraphs:
+                for paragraph in shape.text_frame.paragraphs:  # type: ignore[union-attr]
                     text = paragraph.text.strip()
                     if text:
                         texts.append(text)

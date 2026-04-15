@@ -1,6 +1,6 @@
-from typing import List
+from typing import List, Optional
 
-from sqlalchemy import Column
+from sqlalchemy import Column, ForeignKey, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
@@ -22,4 +22,10 @@ class ClassroomCreate(ClassroomBase):
 
 
 class Classroom(ClassroomBase, BaseModel, table=True):
-    user_id: str = Field(foreign_key="user.id", index=True)
+    user_id: str = Field(
+        sa_column=Column(String, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
+    )
+    organization_id: Optional[str] = Field(
+        default=None,
+        sa_column=Column(String, ForeignKey("organization.id", ondelete="SET NULL"), nullable=True, index=True),
+    )

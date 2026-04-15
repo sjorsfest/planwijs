@@ -10,7 +10,7 @@ from app.models.base import BaseModel
 from app.models.enums import LesplanStatus, LessonPreparationStatus
 
 class LesplanRequest(BaseModel, table=True):
-    __tablename__ = "lesplan_request"
+    __tablename__ = "lesplan_request"  # type: ignore[assignment]
 
     user_id: str = Field(
         sa_column=Column(String, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -38,12 +38,16 @@ class LesplanRequest(BaseModel, table=True):
             nullable=False,
         ),
     )
+    organization_id: Optional[str] = Field(
+        default=None,
+        sa_column=Column(String, ForeignKey("organization.id", ondelete="SET NULL"), nullable=True, index=True),
+    )
 
     overview: Optional["LesplanOverview"] = Relationship(back_populates="request")
 
 
 class LesplanOverview(BaseModel, table=True):
-    __tablename__ = "lesplan_overview"
+    __tablename__ = "lesplan_overview"  # type: ignore[assignment]
 
     request_id: str = Field(
         sa_column=Column(String, ForeignKey("lesplan_request.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
@@ -83,7 +87,7 @@ class LesplanOverview(BaseModel, table=True):
 
 
 class LessonPlan(BaseModel, table=True):
-    __tablename__ = "lesson_plan"
+    __tablename__ = "lesson_plan"  # type: ignore[assignment]
 
     overview_id: str = Field(
         sa_column=Column(String, ForeignKey("lesplan_overview.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -117,7 +121,7 @@ class LessonPlan(BaseModel, table=True):
 
 
 class LessonPreparationTodo(BaseModel, table=True):
-    __tablename__ = "lesson_preparation_todo"
+    __tablename__ = "lesson_preparation_todo"  # type: ignore[assignment]
 
     lesson_plan_id: str = Field(
         sa_column=Column(String, ForeignKey("lesson_plan.id", ondelete="CASCADE"), nullable=False, index=True)
