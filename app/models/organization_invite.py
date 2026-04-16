@@ -7,7 +7,7 @@ from app.models.enums import InviteStatus, OrganizationRole
 
 
 class OrganizationInvite(BaseModel, table=True):
-    __tablename__ = "organization_invite"  # type: ignore[assignment]
+    __tablename__ = "organization_invite"
 
     organization_id: str = Field(
         sa_column=Column(

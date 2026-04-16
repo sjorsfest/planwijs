@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 
 class Subject(BaseModel, table=True):
-    __tablename__ = "subjects"  # type: ignore[assignment]
+    __tablename__ = "subjects"
 
     slug: str = Field(unique=True, index=True)
     name: str = Field(unique=True)

@@ -5,7 +5,7 @@ from app.models.base import BaseModel
 
 
 class TestFeedbackVote(BaseModel, table=True):
-    __tablename__ = "test_feedback_vote"  # type: ignore[assignment]
+    __tablename__ = "test_feedback_vote"
     __table_args__ = (
         UniqueConstraint("user_id", "feedback_id", name="uq_test_feedback_vote_user_feedback"),
     )

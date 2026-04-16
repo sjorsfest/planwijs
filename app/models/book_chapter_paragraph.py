@@ -7,7 +7,7 @@ from app.models.base import BaseModel
 
 
 class BookChapterParagraph(BaseModel, table=True):
-    __tablename__ = "book_chapter_paragraph"  # type: ignore[assignment]
+    __tablename__ = "book_chapter_paragraph"
 
     index: int
     title: str

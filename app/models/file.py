@@ -20,7 +20,7 @@ class FileStatus(str, Enum):
 
 
 class File(BaseModel, table=True):
-    __tablename__ = "file"  # type: ignore[assignment]
+    __tablename__ = "file"
 
     user_id: str = Field(
         sa_column=Column(String, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)

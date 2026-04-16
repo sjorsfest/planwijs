@@ -5,7 +5,7 @@ from app.models.base import BaseModel
 
 
 class TestFeedbackComment(BaseModel, table=True):
-    __tablename__ = "test_feedback_comment"  # type: ignore[assignment]
+    __tablename__ = "test_feedback_comment"
 
     user_id: str = Field(
         sa_column=Column(String, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)

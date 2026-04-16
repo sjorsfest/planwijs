@@ -117,7 +117,7 @@ def _extract_pptx(data: bytes) -> str:
         texts: list[str] = []
         for shape in slide.shapes:
             if shape.has_text_frame:
-                for paragraph in shape.text_frame.paragraphs:  # type: ignore[union-attr]
+                for paragraph in shape.text_frame.paragraphs:
                     text = paragraph.text.strip()
                     if text:
                         texts.append(text)

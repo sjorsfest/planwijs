@@ -9,7 +9,7 @@ from app.models.enums import FeedbackTargetType
 
 
 class Feedback(BaseModel, table=True):
-    __tablename__ = "feedback"  # type: ignore[assignment]
+    __tablename__ = "feedback"
 
     user_id: str = Field(
         sa_column=Column(String, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)

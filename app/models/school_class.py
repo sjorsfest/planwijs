@@ -18,7 +18,7 @@ _ENUM_FIELDS: dict[str, type] = {
 
 
 class Class(BaseModel, table=True):
-    __tablename__ = "class"  # type: ignore[assignment]
+    __tablename__ = "class"
 
     @model_validator(mode="before")
     @classmethod

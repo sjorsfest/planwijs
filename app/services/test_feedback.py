@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.exceptions import NotFoundError
+from app.models.enums import TestFeedbackType
 from app.models.test_feedback import TestFeedback
 from app.models.test_feedback_comment import TestFeedbackComment
 from app.models.test_feedback_vote import TestFeedbackVote
@@ -22,7 +23,7 @@ async def create_feedback(
     route: str,
     name: str,
     description: str,
-    feedback_type: str,
+    feedback_type: TestFeedbackType,
 ) -> TestFeedback:
     fb = TestFeedback(
         user_id=user.id,

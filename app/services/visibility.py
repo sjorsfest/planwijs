@@ -20,7 +20,7 @@ async def get_user_org_id(session: AsyncSession, user_id: str) -> str | None:
 def visible_filter(model_class: Any, user_id: str, org_id: str | None) -> ColumnElement[bool]:
     """WHERE clause: user's own resources OR shared via their org."""
     if org_id is None:
-        return model_class.user_id == user_id  # type: ignore[return-value]
+        return model_class.user_id == user_id
     return or_(
         model_class.user_id == user_id,
         model_class.organization_id == org_id,

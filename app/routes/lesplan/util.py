@@ -302,7 +302,7 @@ def _normalize_lesson_outline(
 
         lesson_number_raw = raw.get("lesson_number")
         try:
-            lesson_number = int(lesson_number_raw)  # type: ignore[arg-type]
+            lesson_number = int(lesson_number_raw)
         except (TypeError, ValueError):
             lesson_number = index + 1
         if lesson_number < 1:
@@ -537,8 +537,7 @@ async def _lesson_response(session: AsyncSession, lesson: LessonPlan) -> LessonP
     todos_result = await session.execute(
         select(LessonPreparationTodo)
         .where(LessonPreparationTodo.lesson_plan_id == lesson.id)
-        .order_by(LessonPreparationTodo.created_at.asc())  # type: ignore[union-attr]
-    )
+        .order_by(LessonPreparationTodo.created_at.asc())    )
     todos = todos_result.scalars().all()
     return LessonPlanResponse(
         id=lesson.id,
@@ -579,8 +578,7 @@ async def _build_context(session: AsyncSession, req: LesplanRequest) -> LesplanC
 
     paragraph_results = await session.execute(
         select(BookChapterParagraph).where(
-            BookChapterParagraph.id.in_(req.selected_paragraph_ids)  # type: ignore[union-attr]
-        )
+            BookChapterParagraph.id.in_(req.selected_paragraph_ids)        )
     )
     paragraphs_by_id = {p.id: p for p in paragraph_results.scalars().all()}
     ordered_paragraphs = [
@@ -600,8 +598,7 @@ async def _build_context(session: AsyncSession, req: LesplanRequest) -> LesplanC
         select(File).where(
             File.lesplan_request_id == req.id,
             File.status == FileStatus.UPLOADED,
-            File.extracted_text.isnot(None),  # type: ignore[union-attr]
-        )
+            File.extracted_text.isnot(None),        )
     )
     file_texts: list[dict[str, str]] | None = None
     files_with_text = file_results.scalars().all()
@@ -617,10 +614,9 @@ async def _build_context(session: AsyncSession, req: LesplanRequest) -> LesplanC
     # Fetch files linked to the class (extra context documents)
     class_file_results = await session.execute(
         select(File).where(
-            File.class_id == classroom.id,  # type: ignore[union-attr]
+            File.class_id == classroom.id,
             File.status == FileStatus.UPLOADED,
-            File.extracted_text.isnot(None),  # type: ignore[union-attr]
-        )
+            File.extracted_text.isnot(None),        )
     )
     class_file_texts: list[dict[str, str]] | None = None
     class_files_with_text = class_file_results.scalars().all()
@@ -669,8 +665,7 @@ async def _fetch_overview_response(
     lessons_result = await session.execute(
         select(LessonPlan)
         .where(LessonPlan.overview_id == overview.id)
-        .order_by(LessonPlan.lesson_number.asc())  # type: ignore[union-attr]
-    )
+        .order_by(LessonPlan.lesson_number.asc())    )
     lessons = lessons_result.scalars().all()
     request = await session.get(LesplanRequest, request_id)
     normalized_payload = _normalize_overview_payload(

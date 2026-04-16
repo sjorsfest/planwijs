@@ -9,7 +9,7 @@ from app.models.enums import OrganizationRole
 
 
 class OrganizationMembership(BaseModel, table=True):
-    __tablename__ = "organization_membership"  # type: ignore[assignment]
+    __tablename__ = "organization_membership"
     __table_args__ = (
         UniqueConstraint("user_id", name="uq_organization_membership_user_id"),
     )

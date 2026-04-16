@@ -7,7 +7,7 @@ from app.models.enums import TestFeedbackType
 
 
 class TestFeedback(BaseModel, table=True):
-    __tablename__ = "test_feedback"  # type: ignore[assignment]
+    __tablename__ = "test_feedback"
 
     user_id: str = Field(
         sa_column=Column(String, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)

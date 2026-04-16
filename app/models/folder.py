@@ -7,7 +7,7 @@ from app.models.base import BaseModel
 
 
 class Folder(BaseModel, table=True):
-    __tablename__ = "folder"  # type: ignore[assignment]
+    __tablename__ = "folder"
 
     user_id: str = Field(
         sa_column=Column(String, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)

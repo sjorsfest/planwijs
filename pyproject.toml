@@ -32,5 +32,8 @@ dev = [
     "ty>=0.0.24",
 ]
 
+[tool.ty.rules]
+unresolved-attribute = "warn"
+
 [tool.ty.src]
 exclude = ["alembic/"]
