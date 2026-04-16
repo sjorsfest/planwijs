@@ -17,6 +17,9 @@ from app.models.organization import Organization
 from app.models.organization_membership import OrganizationMembership
 from app.models.organization_invite import OrganizationInvite
 from app.models.feedback import Feedback
+from app.models.test_feedback import TestFeedback
+from app.models.test_feedback_vote import TestFeedbackVote
+from app.models.test_feedback_comment import TestFeedbackComment
 
 __all__ = [
     "User", "UserRole",
@@ -29,4 +32,5 @@ __all__ = [
     "Organization", "OrganizationMembership", "OrganizationInvite",
     "OrganizationRole", "InviteStatus",
     "Feedback", "FeedbackTargetType",
+    "TestFeedback", "TestFeedbackVote", "TestFeedbackComment",
 ]

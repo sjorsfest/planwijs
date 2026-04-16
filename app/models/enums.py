@@ -111,3 +111,10 @@ class FeedbackTargetType(str, Enum):
     """Which model type the feedback targets."""
     LESPLAN_OVERVIEW = "LESPLAN_OVERVIEW"
     LESSON_PLAN = "LESSON_PLAN"
+
+
+class TestFeedbackType(str, Enum):
+    """Type of tester feedback."""
+    BUG = "BUG"
+    SUGGESTION = "SUGGESTION"
+    OTHER = "OTHER"
