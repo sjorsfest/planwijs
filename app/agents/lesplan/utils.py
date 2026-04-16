@@ -61,9 +61,9 @@ def _build_file_context_block(ctx: LesplanContext) -> str:
 
 def _build_context_block(ctx: LesplanContext) -> str:
     difficulty_descriptions = {
-        "Groen": "Groen (goed hanteerbaar)",
-        "Oranje": "Oranje (vraagt extra aandacht)",
-        "Rood": "Rood (uitdagend, intensieve begeleiding nodig)",
+        "Groen": "Goed hanteerbaar",
+        "Oranje": "Vraagt extra aandacht",
+        "Rood": "Uitdagend, intensieve begeleiding nodig",
     }
     difficulty_str = difficulty_descriptions.get(ctx.difficulty, ctx.difficulty) if ctx.difficulty else "niet opgegeven"
     
