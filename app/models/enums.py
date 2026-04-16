@@ -105,3 +105,9 @@ class InviteStatus(str, Enum):
     PENDING = "PENDING"
     ACCEPTED = "ACCEPTED"
     DECLINED = "DECLINED"
+
+
+class FeedbackTargetType(str, Enum):
+    """Which model type the feedback targets."""
+    LESPLAN_OVERVIEW = "LESPLAN_OVERVIEW"
+    LESSON_PLAN = "LESSON_PLAN"

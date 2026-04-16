@@ -1,7 +1,7 @@
 from app.models.user import User
 from app.models.enums import (
     Subject, SubjectCategory, Level, SchoolYear, ClassDifficulty, LesplanStatus,
-    UserRole, OrganizationRole, InviteStatus,
+    UserRole, OrganizationRole, InviteStatus, FeedbackTargetType,
 )
 from app.models.method import Method
 from app.models.book import Book
@@ -16,6 +16,7 @@ from app.models.lesplan import LesplanRequest, LesplanOverview, LessonPlan
 from app.models.organization import Organization
 from app.models.organization_membership import OrganizationMembership
 from app.models.organization_invite import OrganizationInvite
+from app.models.feedback import Feedback
 
 __all__ = [
     "User", "UserRole",
@@ -27,4 +28,5 @@ __all__ = [
     "LesplanRequest", "LesplanOverview", "LessonPlan",
     "Organization", "OrganizationMembership", "OrganizationInvite",
     "OrganizationRole", "InviteStatus",
+    "Feedback", "FeedbackTargetType",
 ]
