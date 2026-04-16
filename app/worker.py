@@ -1,7 +1,11 @@
 """ARQ worker entry point. Run with: arq app.worker.WorkerSettings"""
 
+from app.config import settings
+from app.logging_config import configure_logging
 from app.redis import get_arq_redis_settings
 from app.tasks import apply_feedback_task, generate_lessons_task, generate_overview_task
+
+configure_logging(debug=settings.debug)
 
 
 class WorkerSettings:

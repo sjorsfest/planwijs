@@ -31,7 +31,8 @@ from app.agents.lesplan.utils import (
 from app.agents.preparation_agent import PreparationContext, generate_preparation_todos
 from app.config import settings
 from app.database import SessionLocal
-from app.models.enums import LesplanStatus
+from app.models.enums import FeedbackTargetType, LesplanStatus
+from app.models.feedback import Feedback
 from app.models.lesplan import LesplanRequest, LessonPlan, LessonPreparationTodo
 from app.redis import get_redis_pool
 from app.task_state import TaskStatus, TaskStep, TaskState, set_task_state, update_task_progress
@@ -327,10 +328,14 @@ async def apply_feedback_task(
             if req is None:
                 raise ValueError(f"LesplanRequest {request_id} not found")
 
+            user_id = req.user_id
+            organization_id = req.organization_id
+
             overview_row = await _fetch_overview(session, request_id)
             if overview_row is None:
                 raise ValueError(f"No overview found for request {request_id}")
 
+            overview_id = overview_row.id
             lesplan_ctx = await _build_context(session, req)
             current_overview = _generated_overview_from_row(
                 overview_row,
@@ -358,6 +363,10 @@ async def apply_feedback_task(
         )
 
         updated_fields = await apply_feedback(lesplan_ctx, current_overview, feedback_items)
+        logger.info(
+            "Feedback agent returned %d updated field(s) for lesplan %s: %s",
+            len(updated_fields), request_id, list(updated_fields.keys()),
+        )
 
         await update_task_progress(
             redis, task_id,
@@ -381,6 +390,24 @@ async def apply_feedback_task(
 
         async with SessionLocal() as session:
             await _persist_overview(session, request_id, raw_payload)
+
+            for item in feedback_items:
+                original_value = raw_payload.get(item["field_name"])
+                feedback_record = Feedback(
+                    user_id=user_id,
+                    target_type=FeedbackTargetType.LESPLAN_OVERVIEW,
+                    target_id=overview_id,
+                    field_name=item["field_name"],
+                    original_text=str(original_value) if original_value is not None else None,
+                    feedback_text=item["user_feedback"],
+                    organization_id=organization_id,
+                )
+                session.add(feedback_record)
+            logger.info(
+                "Saving %d feedback record(s) for overview %s by user %s",
+                len(feedback_items), overview_id, user_id,
+            )
+
             req = await session.get(LesplanRequest, request_id)
             if req is not None:
                 req.status = LesplanStatus.OVERVIEW_READY
