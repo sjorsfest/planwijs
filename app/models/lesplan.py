@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Any, List, Optional
 
-from sqlalchemy import Column, Date, ForeignKey, String
+from sqlalchemy import Boolean, Column, Date, ForeignKey, String
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship
@@ -139,6 +139,10 @@ class LessonPreparationTodo(BaseModel, table=True):
     due_date: Optional[date] = Field(
         default=None,
         sa_column=Column(Date, nullable=True),
+    )
+    outdated: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, nullable=False, server_default="false"),
     )
 
     lesson_plan: Optional["LessonPlan"] = Relationship(back_populates="preparation_todos")

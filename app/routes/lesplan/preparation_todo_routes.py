@@ -1,19 +1,24 @@
 import logging
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.auth import get_current_user
 from app.database import get_session, run_read_with_retry
-from app.exceptions import NotFoundError
+from app.exceptions import ConflictError, NotFoundError, ValidationError
+from app.models.enums import LesplanStatus
 from app.models.lesplan import LesplanOverview, LesplanRequest, LessonPlan, LessonPreparationTodo
 from app.models.user import User
+from app.agents.lesplan.lesson_feedback_agent import LESSON_FIELD_NAMES
 
+from .route import _enqueue_task
 from .types import (
     CreateLessonPreparationTodoRequest,
+    FeedbackRequest,
     LessonPlanResponse,
     LessonPreparationTodoResponse,
+    TaskSubmittedResponse,
     UpdateLessonPlannedDateRequest,
     UpdateLessonPreparationTodoRequest,
 )
@@ -38,6 +43,19 @@ async def _verify_lesson_ownership(session: AsyncSession, lesson_id: str, user_i
     if request is None or request.user_id != user_id:
         raise NotFoundError("Lesson not found")
     return lesson
+
+
+async def _verify_lesson_ownership_with_request(
+    session: AsyncSession, lesson_id: str, user_id: str
+) -> tuple[LessonPlan, LesplanRequest]:
+    lesson = await _get_lesson_or_404(session, lesson_id)
+    overview = await session.get(LesplanOverview, lesson.overview_id)
+    if overview is None:
+        raise NotFoundError("Lesson not found")
+    request = await session.get(LesplanRequest, overview.request_id)
+    if request is None or request.user_id != user_id:
+        raise NotFoundError("Lesson not found")
+    return lesson, request
 
 
 async def _verify_todo_ownership(session: AsyncSession, todo_id: str, user_id: str) -> LessonPreparationTodo:
@@ -162,3 +180,51 @@ async def delete_lesson_preparation_todo(
     await session.delete(todo)
     await session.commit()
     logger.info("Deleted preparation todo %s", todo_id)
+
+
+@router.post("/lessons/{lesson_id}/feedback", response_model=TaskSubmittedResponse)
+async def submit_lesson_feedback(
+    lesson_id: str,
+    data: FeedbackRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> TaskSubmittedResponse:
+    invalid_fields = {item.field_name for item in data.items} - LESSON_FIELD_NAMES
+    if invalid_fields:
+        raise ValidationError(
+            f"Invalid field name(s): {', '.join(sorted(invalid_fields))}. "
+            f"Valid fields: {', '.join(sorted(LESSON_FIELD_NAMES))}"
+        )
+
+    lesson, req = await _verify_lesson_ownership_with_request(session, lesson_id, current_user.id)
+    if req.status != LesplanStatus.COMPLETED:
+        raise ConflictError(
+            f"Lesson feedback can only be given when lessons are completed (current status: {req.status.value})"
+        )
+
+    req.status = LesplanStatus.REVISING_LESSON
+    await session.commit()
+
+    feedback_items = [
+        {
+            "field_name": item.field_name,
+            "specific_part": item.specific_part,
+            "user_feedback": item.user_feedback,
+        }
+        for item in data.items
+    ]
+
+    return await _enqueue_task(
+        request,
+        task_type="apply_lesson_feedback",
+        resource_id=lesson_id,
+        func_name="apply_lesson_feedback_task",
+        steps=[
+            "Loading context",
+            "Applying feedback",
+            "Reconciling preparation",
+            "Persisting changes",
+        ],
+        extra_args=(feedback_items, req.id),
+    )

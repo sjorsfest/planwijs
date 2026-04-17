@@ -9,6 +9,7 @@ from typing import Any
 from redis.asyncio import Redis
 
 from app.agents.lesplan.feedback_agent import apply_feedback
+from app.agents.lesplan.lesson_feedback_agent import apply_lesson_feedback
 from app.agents.lesplan.overview_identity_agent import get_overview_identity_agent
 from app.agents.lesplan.overview_learning_goals_agent import get_overview_learning_goals_agent
 from app.agents.lesplan.overview_sequence_agent import get_overview_sequence_agent
@@ -291,7 +292,7 @@ async def generate_overview_task(ctx: dict[str, Any], task_id: str, request_id: 
                     req.status = LesplanStatus.FAILED
                     await session.commit()
         except Exception:
-            logger.error("Failed to mark lesplan %s as FAILED", request_id)
+            logger.error("Failed to mark lesplan %s as FAILED after lesson generation", request_id)
 
 
 async def apply_feedback_task(
@@ -625,3 +626,229 @@ async def generate_lessons_task(ctx: dict[str, Any], task_id: str, request_id: s
                     await session.commit()
         except Exception:
             logger.error("Failed to mark lesplan %s as FAILED", request_id)
+
+
+# ---------------------------------------------------------------------------
+# Fields that trigger todo reconciliation when changed via lesson feedback
+# ---------------------------------------------------------------------------
+_TODO_TRIGGER_FIELDS = {"time_sections", "required_materials", "learning_objectives"}
+
+
+async def apply_lesson_feedback_task(
+    ctx: dict[str, Any],
+    task_id: str,
+    lesson_id: str,
+    feedback_items: list[dict[str, str]],
+    request_id: str,
+) -> None:
+    redis = await _get_redis()
+    ttl = settings.redis_task_ttl_seconds
+
+    try:
+        # --- Step 1: Load context ---
+        await update_task_progress(
+            redis, task_id,
+            status=TaskStatus.RUNNING,
+            current_step="Loading context",
+            progress_pct=0,
+            step_name="Loading context",
+            step_status=TaskStatus.RUNNING,
+            ttl=ttl,
+        )
+
+        async with SessionLocal() as session:
+            lesson = await session.get(LessonPlan, lesson_id)
+            if lesson is None:
+                raise ValueError(f"LessonPlan {lesson_id} not found")
+
+            req = await session.get(LesplanRequest, request_id)
+            if req is None:
+                raise ValueError(f"LesplanRequest {request_id} not found")
+
+            user_id = req.user_id
+            organization_id = req.organization_id
+
+            lesson_data: dict[str, Any] = {
+                "title": lesson.title,
+                "learning_objectives": lesson.learning_objectives,
+                "time_sections": lesson.time_sections,
+                "required_materials": lesson.required_materials,
+                "teacher_notes": lesson.teacher_notes,
+            }
+            lesson_number = lesson.lesson_number
+
+        await update_task_progress(
+            redis, task_id,
+            step_name="Loading context",
+            step_status=TaskStatus.COMPLETED,
+            progress_pct=10,
+            ttl=ttl,
+        )
+
+        # --- Step 2: Run lesson feedback agent ---
+        await update_task_progress(
+            redis, task_id,
+            current_step="Applying feedback",
+            progress_pct=20,
+            step_name="Applying feedback",
+            step_status=TaskStatus.RUNNING,
+            ttl=ttl,
+        )
+
+        updated_fields = await apply_lesson_feedback(lesson_data, feedback_items)
+        logger.info(
+            "Lesson feedback agent returned %d updated field(s) for lesson %s: %s",
+            len(updated_fields), lesson_id, list(updated_fields.keys()),
+        )
+
+        await update_task_progress(
+            redis, task_id,
+            step_name="Applying feedback",
+            step_status=TaskStatus.COMPLETED,
+            progress_pct=50,
+            ttl=ttl,
+        )
+
+        # --- Step 3: Reconcile preparation todos ---
+        await update_task_progress(
+            redis, task_id,
+            current_step="Reconciling preparation",
+            progress_pct=55,
+            step_name="Reconciling preparation",
+            step_status=TaskStatus.RUNNING,
+            ttl=ttl,
+        )
+
+        new_todos: list[Any] = []
+        needs_todo_reconciliation = bool(_TODO_TRIGGER_FIELDS & set(updated_fields.keys()))
+
+        if needs_todo_reconciliation:
+            merged = {**lesson_data, **updated_fields}
+            time_sections_dicts = [
+                s if isinstance(s, dict) else s
+                for s in merged.get("time_sections", [])
+            ]
+            prep_ctx = PreparationContext(
+                lesson_number=lesson_number,
+                title=merged.get("title", lesson_data["title"]),
+                learning_objectives=merged.get("learning_objectives", []),
+                time_sections=time_sections_dicts,
+                required_materials=merged.get("required_materials", []),
+                teacher_notes=merged.get("teacher_notes", ""),
+            )
+            try:
+                new_todos = await generate_preparation_todos(prep_ctx)
+            except Exception:
+                logger.error(
+                    "Preparation todo regeneration failed for lesson %s:\n%s",
+                    lesson_id, traceback.format_exc(),
+                )
+
+        await update_task_progress(
+            redis, task_id,
+            step_name="Reconciling preparation",
+            step_status=TaskStatus.COMPLETED,
+            progress_pct=80,
+            ttl=ttl,
+        )
+
+        # --- Step 4: Persist changes ---
+        await update_task_progress(
+            redis, task_id,
+            current_step="Persisting changes",
+            progress_pct=85,
+            step_name="Persisting changes",
+            step_status=TaskStatus.RUNNING,
+            ttl=ttl,
+        )
+
+        from sqlalchemy.orm.attributes import flag_modified
+        from sqlmodel import select
+
+        async with SessionLocal() as session:
+            lesson = await session.get(LessonPlan, lesson_id)
+            if lesson is None:
+                raise ValueError(f"LessonPlan {lesson_id} not found")
+
+            for field_name, value in updated_fields.items():
+                setattr(lesson, field_name, value)
+                if field_name in ("learning_objectives", "time_sections", "required_materials"):
+                    flag_modified(lesson, field_name)
+
+            if needs_todo_reconciliation:
+                from app.models.enums import LessonPreparationStatus
+
+                todos_result = await session.execute(
+                    select(LessonPreparationTodo).where(
+                        LessonPreparationTodo.lesson_plan_id == lesson_id
+                    )
+                )
+                existing_todos = todos_result.scalars().all()
+                for todo in existing_todos:
+                    if todo.status == LessonPreparationStatus.PENDING:
+                        await session.delete(todo)
+                    elif todo.status == LessonPreparationStatus.DONE:
+                        todo.outdated = True
+
+                for todo in new_todos:
+                    session.add(
+                        LessonPreparationTodo(
+                            lesson_plan_id=lesson_id,
+                            title=todo.title,
+                            description=todo.description,
+                            why=todo.why,
+                        )
+                    )
+
+            for item in feedback_items:
+                original_value = lesson_data.get(item["field_name"])
+                feedback_record = Feedback(
+                    user_id=user_id,
+                    target_type=FeedbackTargetType.LESSON_PLAN,
+                    target_id=lesson_id,
+                    field_name=item["field_name"],
+                    original_text=str(original_value) if original_value is not None else None,
+                    feedback_text=item["user_feedback"],
+                    organization_id=organization_id,
+                )
+                session.add(feedback_record)
+
+            logger.info(
+                "Saving %d feedback record(s) for lesson %s by user %s",
+                len(feedback_items), lesson_id, user_id,
+            )
+
+            req = await session.get(LesplanRequest, request_id)
+            if req is not None:
+                req.status = LesplanStatus.COMPLETED
+            await session.commit()
+
+        await update_task_progress(
+            redis, task_id,
+            status=TaskStatus.COMPLETED,
+            current_step="Complete",
+            progress_pct=100,
+            step_name="Persisting changes",
+            step_status=TaskStatus.COMPLETED,
+            ttl=ttl,
+        )
+        logger.info("Lesson feedback applied for lesson %s, updated: %s", lesson_id, list(updated_fields.keys()))
+
+    except Exception:
+        logger.error(
+            "Lesson feedback task failed for %s:\n%s", lesson_id, traceback.format_exc()
+        )
+        await update_task_progress(
+            redis, task_id,
+            status=TaskStatus.FAILED,
+            error="Lesson feedback processing failed",
+            ttl=ttl,
+        )
+        try:
+            async with SessionLocal() as session:
+                req = await session.get(LesplanRequest, request_id)
+                if req is not None:
+                    req.status = LesplanStatus.COMPLETED
+                    await session.commit()
+        except Exception:
+            logger.error("Failed to reset lesplan %s status after lesson feedback failure", request_id)

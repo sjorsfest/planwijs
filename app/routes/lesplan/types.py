@@ -39,6 +39,7 @@ class LessonPreparationTodoResponse(BaseModel):
     why: str
     status: str
     due_date: date | None
+    outdated: bool
     created_at: datetime
 
 

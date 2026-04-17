@@ -49,6 +49,7 @@ def _todo_response(todo: LessonPreparationTodo) -> LessonPreparationTodoResponse
         why=todo.why,
         status=todo.status.value,
         due_date=todo.due_date,
+        outdated=todo.outdated,
         created_at=todo.created_at,
     )
 

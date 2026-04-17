@@ -80,13 +80,14 @@ class SchoolType(str, Enum):
 
 
 class LesplanStatus(str, Enum):
-    PENDING = "pending"
-    GENERATING_OVERVIEW = "generating_overview"
-    OVERVIEW_READY = "overview_ready"
-    REVISING_OVERVIEW = "revising_overview"
-    GENERATING_LESSONS = "generating_lessons"
-    COMPLETED = "completed"
-    FAILED = "failed"
+    PENDING = "PENDING"
+    GENERATING_OVERVIEW = "GENERATING_OVERVIEW"
+    OVERVIEW_READY = "OVERVIEW_READY"
+    REVISING_OVERVIEW = "REVISING_OVERVIEW"
+    GENERATING_LESSONS = "GENERATING_LESSONS"
+    COMPLETED = "COMPLETED"
+    REVISING_LESSON = "REVISING_LESSON"
+    FAILED = "FAILED"
 
 
 class LessonPreparationStatus(str, Enum):
