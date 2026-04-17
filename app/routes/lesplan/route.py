@@ -16,10 +16,13 @@ from app.models.book_chapter import BookChapter
 from app.models.book_chapter_paragraph import BookChapterParagraph
 from app.models.classroom import Classroom
 from app.models.file import File
+from app.models.organization_membership import OrganizationMembership
 from app.models.school_class import Class
+from app.models.school_config import SchoolConfig
 from app.models.enums import LesplanStatus
 from app.models.lesplan import LesplanRequest
 from app.models.user import User
+from app.constants import DEFAULT_LESSON_DURATION_MINUTES
 from app.redis import get_redis_pool
 from app.task_state import TaskState, TaskStatus, TaskStep, set_task_state
 
@@ -124,13 +127,35 @@ async def create_lesplan(
                 f"File IDs not found or not owned by user: {sorted(missing_file_ids)}"
             )
 
+    # Resolve lesson_duration_minutes from SchoolConfig
+    org_result = await session.execute(
+        select(OrganizationMembership.organization_id).where(
+            OrganizationMembership.user_id == current_user.id
+        )
+    )
+    user_org_id = org_result.scalar_one_or_none()
+    if user_org_id:
+        cfg_result = await session.execute(
+            select(SchoolConfig).where(SchoolConfig.organization_id == user_org_id)
+        )
+    else:
+        cfg_result = await session.execute(
+            select(SchoolConfig).where(SchoolConfig.user_id == current_user.id)
+        )
+    school_config = cfg_result.scalar_one_or_none()
+    lesson_duration = (
+        school_config.default_lesson_duration_minutes
+        if school_config
+        else DEFAULT_LESSON_DURATION_MINUTES
+    )
+
     req = LesplanRequest(
         user_id=current_user.id,
         class_id=data.class_id,
         book_id=data.book_id,
         selected_paragraph_ids=data.selected_paragraph_ids,
         num_lessons=data.num_lessons,
-        lesson_duration_minutes=data.lesson_duration_minutes,
+        lesson_duration_minutes=lesson_duration,
         classroom_id=data.classroom_id,
         status=LesplanStatus.PENDING,
     )

@@ -208,8 +208,8 @@ class LesplanContext:
     num_lessons: int
     lesson_duration_minutes: int
     attention_span_minutes: int | None = None
-    support_challenge: str | None = None
     class_notes: str | None = None
     classroom_assets: list[str] | None = None
     file_texts: list[dict[str, str]] | None = None
     class_file_texts: list[dict[str, str]] | None = None
+    school_context_notes: str | None = None

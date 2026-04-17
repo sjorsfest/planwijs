@@ -1,6 +1,6 @@
 from app.models.user import User
 from app.models.enums import (
-    Subject, SubjectCategory, Level, SchoolYear, ClassDifficulty, LesplanStatus,
+    Subject, SubjectCategory, Level, SchoolYear, ClassDifficulty, SchoolType, LesplanStatus,
     UserRole, OrganizationRole, InviteStatus, FeedbackTargetType,
 )
 from app.models.method import Method
@@ -16,6 +16,8 @@ from app.models.lesplan import LesplanRequest, LesplanOverview, LessonPlan
 from app.models.organization import Organization
 from app.models.organization_membership import OrganizationMembership
 from app.models.organization_invite import OrganizationInvite
+from app.models.school_config import SchoolConfig
+from app.models.user_subject import UserSubject
 from app.models.feedback import Feedback
 from app.models.test_feedback import TestFeedback
 from app.models.test_feedback_vote import TestFeedbackVote
@@ -23,7 +25,7 @@ from app.models.test_feedback_comment import TestFeedbackComment
 
 __all__ = [
     "User", "UserRole",
-    "Subject", "SubjectCategory", "Level", "SchoolYear", "ClassDifficulty", "LesplanStatus",
+    "Subject", "SubjectCategory", "Level", "SchoolYear", "ClassDifficulty", "SchoolType", "LesplanStatus",
     "Method", "Book", "BookChapter", "BookChapterParagraph", "Class",
     "SubjectModel",
     "ClassroomBase", "ClassroomCreate", "Classroom",
@@ -31,6 +33,7 @@ __all__ = [
     "LesplanRequest", "LesplanOverview", "LessonPlan",
     "Organization", "OrganizationMembership", "OrganizationInvite",
     "OrganizationRole", "InviteStatus",
+    "SchoolConfig", "UserSubject",
     "Feedback", "FeedbackTargetType",
     "TestFeedback", "TestFeedbackVote", "TestFeedbackComment",
 ]

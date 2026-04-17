@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import get_current_user
 from app.database import get_session
 from app.models.school_class import Class
-from app.models.enums import ClassDifficulty, Level, SchoolYear, Subject
+from app.models.enums import ClassDifficulty, Level, SchoolYear
 from app.models.user import User
 from app.services import classroom as classroom_service
 from app.services.visibility import get_user_org_id
@@ -18,7 +18,6 @@ router = APIRouter(prefix="/classes", tags=["classes"])
 async def list_classes(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
-    subject: Optional[Subject] = Query(default=None),
     level: Optional[Level] = Query(default=None),
     school_year: Optional[SchoolYear] = Query(default=None),
     difficulty: Optional[ClassDifficulty] = Query(default=None),
@@ -27,7 +26,6 @@ async def list_classes(
     return await classroom_service.list_classes(
         current_user.id,
         org_id,
-        subject=subject,
         level=level,
         school_year=school_year,
         difficulty=difficulty,

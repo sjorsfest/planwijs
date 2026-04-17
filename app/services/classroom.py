@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import run_read_with_retry
 from app.exceptions import NotFoundError
 from app.models.school_class import Class
-from app.models.enums import ClassDifficulty, Level, SchoolYear, Subject
+from app.models.enums import ClassDifficulty, Level, SchoolYear
 from app.repositories import classroom as classroom_repo
 from app.services.visibility import visible_filter
 
@@ -17,7 +17,6 @@ async def list_classes(
     user_id: str,
     org_id: str | None,
     *,
-    subject: Optional[Subject] = None,
     level: Optional[Level] = None,
     school_year: Optional[SchoolYear] = None,
     difficulty: Optional[ClassDifficulty] = None,
@@ -27,7 +26,6 @@ async def list_classes(
             session,
             user_id,
             org_id,
-            subject=subject,
             level=level,
             school_year=school_year,
             difficulty=difficulty,

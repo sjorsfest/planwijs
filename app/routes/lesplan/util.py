@@ -23,6 +23,8 @@ from app.models.lesplan import LesplanOverview, LesplanRequest, LessonPlan, Less
 from app.models.classroom import Classroom
 from app.models.file import File, FileStatus
 from app.models.method import Method
+from app.models.organization_membership import OrganizationMembership
+from app.models.school_config import SchoolConfig
 from app.models.subject import Subject as SubjectModel
 
 from .types import (
@@ -629,6 +631,27 @@ async def _build_context(session: AsyncSession, req: LesplanRequest) -> LesplanC
         if not class_file_texts:
             class_file_texts = None
 
+    # Resolve school config: check org first, then personal
+    school_context_notes: str | None = None
+    org_membership_result = await session.execute(
+        select(OrganizationMembership.organization_id).where(
+            OrganizationMembership.user_id == req.user_id
+        )
+    )
+    user_org_id = org_membership_result.scalar_one_or_none()
+    if user_org_id:
+        config_result = await session.execute(
+            select(SchoolConfig).where(SchoolConfig.organization_id == user_org_id)
+        )
+        school_config = config_result.scalar_one_or_none()
+    else:
+        config_result = await session.execute(
+            select(SchoolConfig).where(SchoolConfig.user_id == req.user_id)
+        )
+        school_config = config_result.scalar_one_or_none()
+    if school_config:
+        school_context_notes = school_config.context_notes
+
     return LesplanContext(
         book_title=book.title,
         book_subject=subject_name,
@@ -639,13 +662,13 @@ async def _build_context(session: AsyncSession, req: LesplanRequest) -> LesplanC
         class_size=classroom.size,
         difficulty=classroom.difficulty.value if classroom.difficulty else None,
         attention_span_minutes=classroom.attention_span_minutes,
-        support_challenge=classroom.support_challenge.value if classroom.support_challenge else None,
         class_notes=classroom.class_notes,
         num_lessons=req.num_lessons,
         lesson_duration_minutes=req.lesson_duration_minutes,
         classroom_assets=classroom_assets,
         file_texts=file_texts,
         class_file_texts=class_file_texts,
+        school_context_notes=school_context_notes,
     )
 
 

@@ -73,8 +73,16 @@ def _build_context_block(ctx: LesplanContext) -> str:
     )
     
     attention_str = f"{ctx.attention_span_minutes} minuten" if ctx.attention_span_minutes else "niet afgebakend"
-    support_str = ctx.support_challenge or "Geen specifieke bijzonderheden"
     notes_line = f"- Specifieke docentnotities: {ctx.class_notes}\n  (Deze observaties en wensen bepalen mede de insteek van de werkvormen en de tips in de teacher_notes)\n" if ctx.class_notes else ""
+
+    if ctx.school_context_notes:
+        school_profile_block = f"""
+                ### SCHOOLPROFIEL
+                - Achtergrondinformatie over de school: {ctx.school_context_notes}
+                (Gebruik deze context om de lessen beter af te stemmen op de schoolcultuur en pedagogische visie)
+"""
+    else:
+        school_profile_block = ""
 
     if ctx.classroom_assets:
         assets_str = ", ".join(ctx.classroom_assets)
@@ -112,8 +120,6 @@ def _build_context_block(ctx: LesplanContext) -> str:
                 (Wanneer dit oranje of rood is, vraagt dit om strakkere docentregie, zeer duidelijke overgangen tussen activiteiten en afgebakende taken)
                 - Aandachtsspanne: {attention_str}
                 (Dit geldt als de maximale grens voor aaneengesloten instructiemomenten of passief luisteren, waarna een actieve verwerking nodig is)
-                - Ondersteuning & Uitdaging: {support_str}
-                (Deze behoeften vereisen specifieke differentiatiesuggesties en praktische tips in de teacher_notes van de lesplannen)
                 - Extra instructies van de docent: {ctx.class_notes}
                 (Dit zijn instructies van de docent die extra rekening mee gehouden moeten worden bij het opstellen van de lesplannen, dit is erg belangrijk!!)
 {assets_block}
@@ -128,7 +134,7 @@ def _build_context_block(ctx: LesplanContext) -> str:
                 {paragraph_lines}
 {_build_file_context_block(ctx)}
 {_build_class_file_context_block(ctx)}
-        """
+{school_profile_block}        """
 
 
 def _extract_builds_on_numbers(text: str) -> list[int]:
@@ -852,10 +858,6 @@ def _default_delivery_sentence(ctx: LesplanContext) -> str:
     profile_hints = []
     if ctx.attention_span_minutes:
         profile_hints.append(f"max {ctx.attention_span_minutes} min instructie per blok")
-    if ctx.support_challenge == "Meer ondersteuning":
-        profile_hints.append("meer scaffolding en begeleiding")
-    elif ctx.support_challenge == "Meer uitdaging":
-        profile_hints.append("meer complexiteit en zelfstandigheid")
     extra = f", {', '.join(profile_hints)}" if profile_hints else ""
 
     return (
@@ -1075,8 +1077,6 @@ def _ensure_series_summary_includes_delivery(
         profile_bits.append(f"moeilijkheid: {ctx.difficulty}")
     if ctx.attention_span_minutes:
         profile_bits.append(f"aandachtsspanne: {ctx.attention_span_minutes} min")
-    if ctx.support_challenge:
-        profile_bits.append(f"ondersteuning/uitdaging: {ctx.support_challenge}")
     profile = ", ".join(profile_bits)
 
     return (

@@ -68,12 +68,15 @@ class ClassDifficulty(str, Enum):
     RED = "Rood"
 
 
-class ClassSupportChallenge(str, Enum):
-    """Hoeveel ondersteuning of uitdaging de klas nodig heeft."""
-
-    MORE_SUPPORT = "Meer ondersteuning"
-    BALANCED = "Gebalanceerd"
-    MORE_CHALLENGE = "Meer uitdaging"
+class SchoolType(str, Enum):
+    REGULIER = "REGULIER"
+    MONTESSORI = "MONTESSORI"
+    DALTON = "DALTON"
+    JENAPLAN = "JENAPLAN"
+    VRIJE_SCHOOL = "VRIJE_SCHOOL"
+    TECHNASIUM = "TECHNASIUM"
+    TWEETALIG = "TWEETALIG"
+    ANDERS = "ANDERS"
 
 
 class LesplanStatus(str, Enum):
