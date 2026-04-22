@@ -29,7 +29,12 @@
       "Bash(python -c \"from app.main import app; print\\(''OK''\\)\")",
       "Bash(python -c \"from app.main import app; from app.models.enums import SchoolType; print\\(list\\(SchoolType\\)\\); print\\(''OK''\\)\")",
       "Bash(.venv/bin/python -c \"from app.routes.school_config.route import _get_effective_config, _get_method_ids; print\\(''OK''\\)\")",
-      "Bash(.venv/bin/python -c \"from app.routes.methods.route import router; from app.routes.books.route import router; from app.routes.school_config.route import router; print\\(''All routes OK''\\)\")"
+      "Bash(.venv/bin/python -c \"from app.routes.methods.route import router; from app.routes.books.route import router; from app.routes.school_config.route import router; print\\(''All routes OK''\\)\")",
+      "Bash(python -m mypy app/agents/lesplan/overview_identity_agent.py --ignore-missing-imports)",
+      "Bash(python -m pyright app/agents/lesplan/types.py app/tasks.py app/agents/lesplan/lessons_agent.py)",
+      "Bash(python -m mypy app/agents/lesplan/types.py app/tasks.py app/agents/lesplan/lessons_agent.py)",
+      "Bash(python -c \"from app.agents.lesplan.types import GeneratedLessonPlan, GeneratedLessons; print\\(''Types OK''\\)\")",
+      "Bash(python -m pyright app/models/lesplan.py app/models/learning_goal.py app/models/lesson_objective.py app/models/lesson_objective_goal.py)"
     ]
   }
 }

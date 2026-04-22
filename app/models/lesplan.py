@@ -84,6 +84,10 @@ class LesplanOverview(BaseModel, table=True):
 
     request: Optional["LesplanRequest"] = Relationship(back_populates="overview")
     lessons: List["LessonPlan"] = Relationship(back_populates="overview")
+    # LearningGoal is resolved at runtime by SQLModel via the shared model registry (app/models/__init__.py).
+    # Do NOT use `from __future__ import annotations` or TYPE_CHECKING imports here — that turns type hints
+    # into raw strings, which breaks SQLAlchemy's relationship mapper (it sees "Optional['X']" instead of "X").
+    learning_goal_records: List["LearningGoal"] = Relationship(back_populates="overview")  # type: ignore[name-defined]
 
 
 class LessonPlan(BaseModel, table=True):
@@ -118,6 +122,7 @@ class LessonPlan(BaseModel, table=True):
 
     overview: Optional["LesplanOverview"] = Relationship(back_populates="lessons")
     preparation_todos: List["LessonPreparationTodo"] = Relationship(back_populates="lesson_plan")
+    lesson_objective_records: List["LessonObjective"] = Relationship(back_populates="lesson_plan")  # type: ignore[name-defined]
 
 
 class LessonPreparationTodo(BaseModel, table=True):

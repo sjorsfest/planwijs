@@ -112,10 +112,23 @@ class GeneratedLessonPlan(BaseModel):
     lesson_number: int
     title: str
     learning_objectives: list[str] = Field(min_length=1)
+    objective_goal_indices: list[list[int]] = Field(default_factory=list)
     time_sections: list[GeneratedTimeSectionItem] = Field(min_length=1)
     required_materials: list[str]
     covered_paragraph_indices: list[int]
     teacher_notes: str
+
+    @field_validator("objective_goal_indices", mode="before")
+    @classmethod
+    def _parse_objective_goal_indices(cls, v: object) -> object:
+        if isinstance(v, str):
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    return parsed
+            except json.JSONDecodeError:
+                return []
+        return v
 
 
 class GeneratedLessons(BaseModel):

@@ -9,6 +9,8 @@ from sqlmodel import select
 
 from app.auth import get_current_user
 from app.database import run_read_with_retry
+from app.models.lesson_objective import LessonObjective
+from app.models.lesson_objective_goal import LessonObjectiveGoal
 from app.models.lesplan import (
     LesplanOverview,
     LesplanRequest,
@@ -21,6 +23,7 @@ from app.routes.calendar.types import (
     CalendarResponse,
     CalendarTodoItem,
 )
+from app.routes.lesplan.types import LessonObjectiveResponse
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +83,26 @@ async def get_calendar(
         for lesson in lessons:
             overview = lesson.overview
             request = overview.request if overview else None
+
+            # Load lesson objective records
+            obj_result = await session.execute(
+                select(LessonObjective)
+                .where(LessonObjective.lesson_plan_id == lesson.id)
+                .order_by(LessonObjective.position.asc())  # type: ignore[union-attr]
+            )
+            objectives = obj_result.scalars().all()
+            obj_responses = []
+            for obj in objectives:
+                links_result = await session.execute(
+                    select(LessonObjectiveGoal).where(
+                        LessonObjectiveGoal.lesson_objective_id == obj.id
+                    )
+                )
+                goal_ids = [link.learning_goal_id for link in links_result.scalars().all()]
+                obj_responses.append(LessonObjectiveResponse(
+                    id=obj.id, text=obj.text, position=obj.position, goal_ids=goal_ids,
+                ))
+
             items.append(
                 CalendarLessonItem(
                     id=lesson.id,
@@ -87,6 +110,7 @@ async def get_calendar(
                     planned_date=lesson.planned_date,  # type: ignore[arg-type]
                     lesson_number=lesson.lesson_number,
                     learning_objectives=lesson.learning_objectives,
+                    lesson_objective_records=obj_responses,
                     lesplan_id=request.id if request else "",
                     lesplan_title=overview.title if overview else "",
                     created_at=lesson.created_at,

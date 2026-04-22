@@ -19,6 +19,9 @@ from app.models.book import Book
 from app.models.book_chapter_paragraph import BookChapterParagraph
 from app.models.school_class import Class
 from app.models.enums import LesplanStatus
+from app.models.learning_goal import LearningGoal
+from app.models.lesson_objective import LessonObjective
+from app.models.lesson_objective_goal import LessonObjectiveGoal
 from app.models.lesplan import LesplanOverview, LesplanRequest, LessonPlan, LessonPreparationTodo
 from app.models.classroom import Classroom
 from app.models.file import File, FileStatus
@@ -30,8 +33,10 @@ from app.models.subject import Subject as SubjectModel
 from .types import (
     GoalCoverageItemResponse,
     KnowledgeCoverageItemResponse,
+    LearningGoalResponse,
     LesplanOverviewResponse,
     LesplanResponse,
+    LessonObjectiveResponse,
     LessonOutlineItemResponse,
     LessonPlanResponse,
     LessonPreparationTodoResponse,
@@ -542,12 +547,36 @@ async def _lesson_response(session: AsyncSession, lesson: LessonPlan) -> LessonP
         .where(LessonPreparationTodo.lesson_plan_id == lesson.id)
         .order_by(LessonPreparationTodo.created_at.asc())    )
     todos = todos_result.scalars().all()
+
+    # Load LessonObjective records with their goal links
+    objectives_result = await session.execute(
+        select(LessonObjective)
+        .where(LessonObjective.lesson_plan_id == lesson.id)
+        .order_by(LessonObjective.position.asc())  # type: ignore[union-attr]
+    )
+    objectives = objectives_result.scalars().all()
+    objective_responses = []
+    for obj in objectives:
+        links_result = await session.execute(
+            select(LessonObjectiveGoal).where(
+                LessonObjectiveGoal.lesson_objective_id == obj.id
+            )
+        )
+        goal_ids = [link.learning_goal_id for link in links_result.scalars().all()]
+        objective_responses.append(LessonObjectiveResponse(
+            id=obj.id,
+            text=obj.text,
+            position=obj.position,
+            goal_ids=goal_ids,
+        ))
+
     return LessonPlanResponse(
         id=lesson.id,
         lesson_number=lesson.lesson_number,
         planned_date=lesson.planned_date,
         title=lesson.title,
         learning_objectives=lesson.learning_objectives,
+        lesson_objective_records=objective_responses,
         time_sections=[TimeSectionResponse(**item) for item in lesson.time_sections if isinstance(item, dict)],
         required_materials=lesson.required_materials,
         covered_paragraph_ids=lesson.covered_paragraph_ids,
@@ -700,12 +729,25 @@ async def _fetch_overview_response(
 
     lesson_responses = [await _lesson_response(session, lesson) for lesson in lessons]
 
+    # Load LearningGoal records
+    goals_result = await session.execute(
+        select(LearningGoal)
+        .where(LearningGoal.overview_id == overview.id)
+        .order_by(LearningGoal.position.asc())  # type: ignore[union-attr]
+    )
+    goal_records = goals_result.scalars().all()
+    goal_responses = [
+        LearningGoalResponse(id=g.id, text=g.text, position=g.position)
+        for g in goal_records
+    ]
+
     return LesplanOverviewResponse(
         id=overview.id,
         title=normalized_payload["title"],
         series_summary=normalized_payload["series_summary"],
         series_themes=normalized_payload["series_themes"],
         learning_goals=normalized_payload["learning_goals"],
+        learning_goal_records=goal_responses,
         key_knowledge=normalized_payload["key_knowledge"],
         recommended_approach=normalized_payload["recommended_approach"],
         learning_progression=normalized_payload["learning_progression"],
@@ -779,6 +821,25 @@ async def _persist_overview(
         overview.goal_coverage = normalized["goal_coverage"]
         overview.knowledge_coverage = normalized["knowledge_coverage"]
         overview.didactic_approach = normalized["didactic_approach"]
+
+    # Flush to ensure overview.id is available
+    await session.flush()
+
+    # Sync LearningGoal records: delete old ones, create new
+    existing_goals_result = await session.execute(
+        select(LearningGoal).where(LearningGoal.overview_id == overview.id)
+    )
+    for old_goal in existing_goals_result.scalars().all():
+        await session.delete(old_goal)
+    await session.flush()
+
+    for pos, goal_text in enumerate(normalized["learning_goals"]):
+        session.add(LearningGoal(
+            overview_id=overview.id,
+            text=goal_text,
+            position=pos,
+        ))
+
     return overview
 
 

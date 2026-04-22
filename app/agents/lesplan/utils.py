@@ -1294,7 +1294,7 @@ def _build_revision_assistant_message(history: list[dict[str, Any]]) -> str:
 
 
 def _build_overview_text(overview: GeneratedLesplanOverview) -> str:
-    learning_goals_lines = "\n".join(f"  - {item}" for item in overview.learning_goals)
+    learning_goals_lines = "\n".join(f"  [{i}] {item}" for i, item in enumerate(overview.learning_goals))
     key_knowledge_lines = "\n".join(f"  - {item}" for item in overview.key_knowledge)
     series_themes_lines = "\n".join(f"  - {item}" for item in overview.series_themes)
     lesson_outline_lines = "\n".join(

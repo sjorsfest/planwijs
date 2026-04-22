@@ -63,12 +63,26 @@ class UpdateLessonPlannedDateRequest(BaseModel):
     planned_date: date | None = None
 
 
+class LearningGoalResponse(BaseModel):
+    id: str
+    text: str
+    position: int
+
+
+class LessonObjectiveResponse(BaseModel):
+    id: str
+    text: str
+    position: int
+    goal_ids: list[str] = Field(default_factory=list)
+
+
 class LessonPlanResponse(BaseModel):
     id: str
     lesson_number: int
     planned_date: date | None
     title: str
     learning_objectives: list[str]
+    lesson_objective_records: list[LessonObjectiveResponse] = Field(default_factory=list)
     time_sections: list[TimeSectionResponse]
     required_materials: list[str]
     covered_paragraph_ids: list[str]
@@ -109,6 +123,7 @@ class LesplanOverviewResponse(BaseModel):
     series_summary: str
     series_themes: list[str]
     learning_goals: list[str]
+    learning_goal_records: list[LearningGoalResponse] = Field(default_factory=list)
     key_knowledge: list[str]
     recommended_approach: str
     learning_progression: str

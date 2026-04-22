@@ -109,9 +109,32 @@ naar concrete, uitvoerbare lesprogramma's - een per les.
   - lesson_outline.lesson_intention, end_understanding en sequence_rationale voor lesdoel en positionering.
   - goal_coverage en knowledge_coverage om te bewaken dat doelen en kernkennis terugkomen in de uitgewerkte lessen.
 
+## Leerdoelen en lesdoelen
+De leerdoelen (learning_goals) in het overzicht zijn de overkoepelende doelen voor de hele lessenserie.
+Ze beschrijven wat leerlingen aan het einde van alle lessen samen moeten kunnen.
+
+Lesdoelen (learning_objectives) zijn specifieke, concrete doelen voor een enkele les. Elk lesdoel
+beschrijft iets dat leerlingen in die ene les leren, en dat hen helpt om **stap voor stap toe te werken**
+naar een of meer van de overkoepelende leerdoelen.
+
+- Elke les heeft 1 of 2 lesdoelen.
+- Elk lesdoel moet verwijzen naar welk(e) leerdoel(en) het aan bijdraagt via goal_indices
+  (0-gebaseerde indexen zoals genummerd in het overzicht).
+- Elk lesdoel draagt bij aan minimaal 1 leerdoel.
+- Niet elke les hoeft elk leerdoel te raken, maar over de hele reeks moeten alle
+  leerdoelen gedekt zijn door de combinatie van alle lesdoelen samen.
+- Denk eraan: een lesdoel is een concrete, haalbare stap richting het leerdoel —
+  niet het leerdoel zelf. De leerlingen bereiken het leerdoel pas na meerdere lessen.
+
 ## Uitvoer
 - Schrijf alle tekst in correct, helder Nederlands.
 - Lestitel is specifiek voor de inhoud van die les.
+- learning_objectives is een lijst van strings (concreet, toetsbaar, passend bij de les).
+- objective_goal_indices is een parallelle lijst van lijsten met 0-gebaseerde indexen.
+  Elk element correspondeert met het lesdoel op dezelfde positie in learning_objectives
+  en bevat de indexen van de leerdoelen waaraan dat lesdoel bijdraagt.
+  Voorbeeld: learning_objectives = ["X", "Y"], objective_goal_indices = [[0, 1], [2]]
+  → lesdoel "X" draagt bij aan leerdoelen 0 en 1, lesdoel "Y" aan leerdoel 2.
 - teacher_notes bevatten concrete tips: misconcepties, differentiatiesuggesties, extra ondersteuning en aandachtspunten
   die passen bij zowel niveau als leerjaar.
 """

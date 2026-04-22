@@ -34,8 +34,12 @@ from app.config import settings
 from app.database import SessionLocal
 from app.models.enums import FeedbackTargetType, LesplanStatus
 from app.models.feedback import Feedback
+from app.models.learning_goal import LearningGoal
+from app.models.lesson_objective import LessonObjective
+from app.models.lesson_objective_goal import LessonObjectiveGoal
 from app.models.lesplan import LesplanRequest, LessonPlan, LessonPreparationTodo
 from app.redis import get_redis_pool
+from sqlmodel import select
 from app.task_state import TaskStatus, TaskStep, TaskState, set_task_state, update_task_progress
 
 logger = logging.getLogger(__name__)
@@ -523,6 +527,15 @@ async def generate_lessons_task(ctx: dict[str, Any], task_id: str, request_id: s
             ttl=ttl,
         )
 
+        # Load LearningGoal records for linking objectives to goals
+        async with SessionLocal() as session:
+            goal_results = await session.execute(
+                select(LearningGoal)
+                .where(LearningGoal.overview_id == overview_id)
+                .order_by(LearningGoal.position.asc())  # type: ignore[union-attr]
+            )
+            goal_records = list(goal_results.scalars().all())
+
         total_lessons = len(generated_lessons)
         for i, lesson in enumerate(generated_lessons):
             progress = 40 + int((i / max(total_lessons, 1)) * 50)
@@ -539,12 +552,14 @@ async def generate_lessons_task(ctx: dict[str, Any], task_id: str, request_id: s
                 if 0 <= idx < len(selected_paragraph_ids)
             ]
 
+            objective_texts = lesson.learning_objectives
+
             todos = []
             try:
                 prep_ctx = PreparationContext(
                     lesson_number=lesson.lesson_number,
                     title=lesson.title,
-                    learning_objectives=lesson.learning_objectives,
+                    learning_objectives=objective_texts,
                     time_sections=[s.model_dump(mode="json") for s in lesson.time_sections],
                     required_materials=lesson.required_materials,
                     teacher_notes=lesson.teacher_notes,
@@ -562,7 +577,7 @@ async def generate_lessons_task(ctx: dict[str, Any], task_id: str, request_id: s
                     overview_id=overview_id,
                     lesson_number=lesson.lesson_number,
                     title=lesson.title,
-                    learning_objectives=lesson.learning_objectives,
+                    learning_objectives=objective_texts,
                     time_sections=[section.model_dump(mode="json") for section in lesson.time_sections],
                     required_materials=lesson.required_materials,
                     covered_paragraph_ids=covered_ids,
@@ -570,6 +585,25 @@ async def generate_lessons_task(ctx: dict[str, Any], task_id: str, request_id: s
                 )
                 session.add(lesson_plan)
                 await session.flush()
+
+                # Create LessonObjective records with goal links
+                goal_mapping = lesson.objective_goal_indices or []
+                for pos, obj_text in enumerate(lesson.learning_objectives):
+                    lo = LessonObjective(
+                        lesson_plan_id=lesson_plan.id,
+                        text=obj_text,
+                        position=pos,
+                    )
+                    session.add(lo)
+                    await session.flush()
+
+                    indices = goal_mapping[pos] if pos < len(goal_mapping) else []
+                    for goal_idx in indices:
+                        if 0 <= goal_idx < len(goal_records):
+                            session.add(LessonObjectiveGoal(
+                                lesson_objective_id=lo.id,
+                                learning_goal_id=goal_records[goal_idx].id,
+                            ))
 
                 for todo in todos:
                     session.add(
@@ -763,7 +797,6 @@ async def apply_lesson_feedback_task(
         )
 
         from sqlalchemy.orm.attributes import flag_modified
-        from sqlmodel import select
 
         async with SessionLocal() as session:
             lesson = await session.get(LessonPlan, lesson_id)
@@ -774,6 +807,27 @@ async def apply_lesson_feedback_task(
                 setattr(lesson, field_name, value)
                 if field_name in ("learning_objectives", "time_sections", "required_materials"):
                     flag_modified(lesson, field_name)
+
+            # Sync LessonObjective records when objectives are updated
+            if "learning_objectives" in updated_fields:
+                old_objectives_result = await session.execute(
+                    select(LessonObjective).where(
+                        LessonObjective.lesson_plan_id == lesson_id
+                    )
+                )
+                for old_obj in old_objectives_result.scalars().all():
+                    await session.delete(old_obj)
+                await session.flush()
+
+                new_objectives = updated_fields["learning_objectives"]
+                if isinstance(new_objectives, list):
+                    for pos, obj_text in enumerate(new_objectives):
+                        text = obj_text if isinstance(obj_text, str) else str(obj_text)
+                        session.add(LessonObjective(
+                            lesson_plan_id=lesson_id,
+                            text=text,
+                            position=pos,
+                        ))
 
             if needs_todo_reconciliation:
                 from app.models.enums import LessonPreparationStatus

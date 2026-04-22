@@ -20,6 +20,9 @@ from app.models.school_config import SchoolConfig
 from app.models.school_config_method import SchoolConfigMethod
 from app.models.user_subject import UserSubject
 from app.models.feedback import Feedback
+from app.models.learning_goal import LearningGoal
+from app.models.lesson_objective import LessonObjective
+from app.models.lesson_objective_goal import LessonObjectiveGoal
 from app.models.test_feedback import TestFeedback
 from app.models.test_feedback_vote import TestFeedbackVote
 from app.models.test_feedback_comment import TestFeedbackComment
@@ -36,5 +39,6 @@ __all__ = [
     "OrganizationRole", "InviteStatus",
     "SchoolConfig", "SchoolConfigMethod", "UserSubject",
     "Feedback", "FeedbackTargetType",
+    "LearningGoal", "LessonObjective", "LessonObjectiveGoal",
     "TestFeedback", "TestFeedbackVote", "TestFeedbackComment",
 ]
