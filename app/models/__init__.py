@@ -17,6 +17,7 @@ from app.models.organization import Organization
 from app.models.organization_membership import OrganizationMembership
 from app.models.organization_invite import OrganizationInvite
 from app.models.school_config import SchoolConfig
+from app.models.school_config_method import SchoolConfigMethod
 from app.models.user_subject import UserSubject
 from app.models.feedback import Feedback
 from app.models.test_feedback import TestFeedback
@@ -33,7 +34,7 @@ __all__ = [
     "LesplanRequest", "LesplanOverview", "LessonPlan",
     "Organization", "OrganizationMembership", "OrganizationInvite",
     "OrganizationRole", "InviteStatus",
-    "SchoolConfig", "UserSubject",
+    "SchoolConfig", "SchoolConfigMethod", "UserSubject",
     "Feedback", "FeedbackTargetType",
     "TestFeedback", "TestFeedbackVote", "TestFeedbackComment",
 ]

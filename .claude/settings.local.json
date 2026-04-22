@@ -27,7 +27,9 @@
       "Bash(python -c \":*)",
       "Bash(python -m pytest tests/ -x -q)",
       "Bash(python -c \"from app.main import app; print\\(''OK''\\)\")",
-      "Bash(python -c \"from app.main import app; from app.models.enums import SchoolType; print\\(list\\(SchoolType\\)\\); print\\(''OK''\\)\")"
+      "Bash(python -c \"from app.main import app; from app.models.enums import SchoolType; print\\(list\\(SchoolType\\)\\); print\\(''OK''\\)\")",
+      "Bash(.venv/bin/python -c \"from app.routes.school_config.route import _get_effective_config, _get_method_ids; print\\(''OK''\\)\")",
+      "Bash(.venv/bin/python -c \"from app.routes.methods.route import router; from app.routes.books.route import router; from app.routes.school_config.route import router; print\\(''All routes OK''\\)\")"
     ]
   }
 }

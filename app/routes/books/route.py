@@ -3,9 +3,12 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth import get_current_user
 from app.database import get_session
 from app.models.book import Book
 from app.models.enums import Level, SchoolYear
+from app.models.user import User
+from app.routes.school_config.route import _get_effective_config, _get_method_ids
 from app.services import book as book_service
 
 from .types import BookDetailResponse
@@ -19,13 +22,24 @@ async def list_books(
     subject_id: Optional[str] = Query(default=None),
     level: Optional[Level] = Query(default=None),
     school_year: Optional[SchoolYear] = Query(default=None),
+    for_school_config: bool = Query(default=False),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ) -> list[Book]:
-    return await book_service.list_books(
+    books = await book_service.list_books(
         method_id=method_id,
         subject_id=subject_id,
         level=level,
         school_year=school_year,
     )
+    if for_school_config:
+        config, _ = await _get_effective_config(session, current_user.id)
+        if config:
+            selected = set(await _get_method_ids(session, config.id))
+            books = [b for b in books if b.method_id in selected]
+        else:
+            books = []
+    return books
 
 
 @router.get("/{book_id}", response_model=BookDetailResponse)

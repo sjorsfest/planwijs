@@ -3,9 +3,12 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth import get_current_user
 from app.database import get_session
 from app.models.enums import Subject
 from app.models.method import Method
+from app.models.user import User
+from app.routes.school_config.route import _get_effective_config, _get_method_ids
 from app.services import method as method_service
 
 router = APIRouter(prefix="/methods", tags=["methods"])
@@ -14,8 +17,19 @@ router = APIRouter(prefix="/methods", tags=["methods"])
 @router.get("/", response_model=list[Method])
 async def list_methods(
     subject: Optional[Subject] = Query(default=None),
+    for_school_config: bool = Query(default=False),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ) -> list[Method]:
-    return await method_service.list_methods(subject=subject)
+    methods = await method_service.list_methods(subject=subject)
+    if for_school_config:
+        config, _ = await _get_effective_config(session, current_user.id)
+        if config:
+            selected = set(await _get_method_ids(session, config.id))
+            methods = [m for m in methods if m.id in selected]
+        else:
+            methods = []
+    return methods
 
 
 @router.get("/{method_id}", response_model=Method)

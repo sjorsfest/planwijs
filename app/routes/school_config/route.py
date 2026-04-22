@@ -10,6 +10,7 @@ from app.database import get_session
 from app.models.enums import Level, SchoolType
 from app.models.organization_membership import OrganizationMembership
 from app.models.school_config import SchoolConfig
+from app.models.school_config_method import SchoolConfigMethod
 from app.models.user import User
 
 router = APIRouter(prefix="/school-config", tags=["school-config"])
@@ -23,6 +24,7 @@ class SchoolConfigUpdate(PydanticBaseModel):
     levels: list[Level] | None = None
     school_type: SchoolType | None = None
     context_notes: str | None = None
+    method_ids: list[str] | None = None
 
 
 class SchoolConfigResponse(PydanticBaseModel):
@@ -33,6 +35,7 @@ class SchoolConfigResponse(PydanticBaseModel):
     levels: list[Level]
     school_type: SchoolType | None = None
     context_notes: str | None = None
+    method_ids: list[str] = []
 
 
 # --- Helpers ---
@@ -61,6 +64,40 @@ async def _get_effective_config(
     return cfg_result.scalar_one_or_none(), None
 
 
+async def _get_method_ids(session: AsyncSession, config_id: str) -> list[str]:
+    result = await session.execute(
+        select(SchoolConfigMethod.method_id).where(
+            SchoolConfigMethod.school_config_id == config_id
+        )
+    )
+    return list(result.scalars().all())
+
+
+async def _sync_method_ids(
+    session: AsyncSession, config_id: str, method_ids: list[str]
+) -> None:
+    """Replace the current set of method links with the given method_ids."""
+    result = await session.execute(
+        select(SchoolConfigMethod).where(
+            SchoolConfigMethod.school_config_id == config_id
+        )
+    )
+    existing = {link.method_id: link for link in result.scalars().all()}
+
+    desired = set(method_ids)
+    # Remove links no longer wanted
+    for method_id, link in existing.items():
+        if method_id not in desired:
+            await session.delete(link)
+    # Add new links
+    for method_id in desired:
+        if method_id not in existing:
+            session.add(SchoolConfigMethod(
+                school_config_id=config_id,
+                method_id=method_id,
+            ))
+
+
 # --- Routes ---
 
 
@@ -72,7 +109,8 @@ async def get_school_config(
     config, _ = await _get_effective_config(session, current_user.id)
     if config is None:
         return None
-    return _to_response(config)
+    method_ids = await _get_method_ids(session, config.id)
+    return _to_response(config, method_ids=method_ids)
 
 
 @router.put("/", response_model=SchoolConfigResponse)
@@ -99,12 +137,20 @@ async def upsert_school_config(
         config.context_notes = data.context_notes
 
     session.add(config)
+    await session.flush()
+
+    if data.method_ids is not None:
+        await _sync_method_ids(session, config.id, data.method_ids)
+
     await session.commit()
     await session.refresh(config)
-    return _to_response(config)
+    method_ids = await _get_method_ids(session, config.id)
+    return _to_response(config, method_ids=method_ids)
 
 
-def _to_response(config: SchoolConfig) -> SchoolConfigResponse:
+def _to_response(
+    config: SchoolConfig, *, method_ids: list[str] | None = None
+) -> SchoolConfigResponse:
     return SchoolConfigResponse(
         id=config.id,
         organization_id=config.organization_id,
@@ -113,4 +159,5 @@ def _to_response(config: SchoolConfig) -> SchoolConfigResponse:
         levels=config.levels,
         school_type=config.school_type,
         context_notes=config.context_notes,
+        method_ids=method_ids or [],
     )
