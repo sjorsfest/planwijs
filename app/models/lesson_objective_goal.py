@@ -29,5 +29,7 @@ class LessonObjectiveGoal(BaseModel, table=True):
         )
     )
 
-    lesson_objective: Optional["LessonObjective"] = Relationship(back_populates="goal_links")
-    learning_goal: Optional["LearningGoal"] = Relationship(back_populates="objective_links")
+    # Resolved at runtime by SQLModel via the shared model registry (app/models/__init__.py).
+    # Do NOT use `from __future__ import annotations` or TYPE_CHECKING imports — breaks SQLAlchemy's mapper.
+    lesson_objective: Optional["LessonObjective"] = Relationship(back_populates="goal_links")  # type: ignore[name-defined]
+    learning_goal: Optional["LearningGoal"] = Relationship(back_populates="objective_links")  # type: ignore[name-defined]

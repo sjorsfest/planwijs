@@ -20,5 +20,7 @@ class LessonObjective(BaseModel, table=True):
     text: str = Field(sa_column=Column(Text, nullable=False))
     position: int = Field(sa_column=Column(Integer, nullable=False))
 
-    lesson_plan: Optional["LessonPlan"] = Relationship(back_populates="lesson_objective_records")
-    goal_links: List["LessonObjectiveGoal"] = Relationship(back_populates="lesson_objective")
+    # Resolved at runtime by SQLModel via the shared model registry (app/models/__init__.py).
+    # Do NOT use `from __future__ import annotations` or TYPE_CHECKING imports — breaks SQLAlchemy's mapper.
+    lesson_plan: Optional["LessonPlan"] = Relationship(back_populates="lesson_objective_records")  # type: ignore[name-defined]
+    goal_links: List["LessonObjectiveGoal"] = Relationship(back_populates="lesson_objective")  # type: ignore[name-defined]
