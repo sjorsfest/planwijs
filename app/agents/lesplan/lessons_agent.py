@@ -136,6 +136,21 @@ Regels:
 - Een lesdoel is een concrete, haalbare stap richting het leerdoel —
   niet het leerdoel zelf. De leerlingen bereiken het leerdoel pas na meerdere lessen.
 
+## Geen verwijzingen naar bronmateriaal
+- Verwijs NOOIT naar specifiek bronmateriaal zoals een boek, methode, paragraaf of hoofdstuk
+  (bijv. "lees paragraaf 3 in het Flex boek", "maak opgave 4 uit het werkboek").
+- Wij bezitten het bronmateriaal niet en kunnen niet garanderen dat het bestaat of klopt.
+- Beschrijf in plaats daarvan de inhoud zelf in de activiteit. Geef de docent een concrete
+  omschrijving van wat er behandeld moet worden, zonder te verwijzen naar een
+  specifieke bron.
+- Voorbeelden van wat NIET mag:
+  - "Lees de tekst op pagina 12 van het lesboek."
+  - "Voer opgave 3a-3c uit het werkboek uit."
+  - "Gebruik de bron uit het Flex boek, paragraaf 1."
+- Voorbeelden van wat WEL mag:
+  - "Lees een korte tekst over de Nijloverstroming en de gevolgen voor de samenleving."
+  - "Beantwoord drie vragen over de oorzaken en gevolgen van de overstroming."
+
 ## Uitvoer
 - Schrijf alle tekst in correct, helder Nederlands.
 - Lestitel is specifiek voor de inhoud van die les.
