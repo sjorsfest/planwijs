@@ -110,20 +110,30 @@ naar concrete, uitvoerbare lesprogramma's - een per les.
   - goal_coverage en knowledge_coverage om te bewaken dat doelen en kernkennis terugkomen in de uitgewerkte lessen.
 
 ## Leerdoelen en lesdoelen
-De leerdoelen (learning_goals) in het overzicht zijn de overkoepelende doelen voor de hele lessenserie.
-Ze beschrijven wat leerlingen aan het einde van alle lessen samen moeten kunnen.
+De leerdoelen (learning_goals) in het overzicht zijn ambitieuze, overkoepelende doelen voor de hele
+lessenserie. Ze beschrijven het EINDGEDRAG na alle lessen samen en staan op een hoger Bloom-niveau.
 
-Lesdoelen (learning_objectives) zijn specifieke, concrete doelen voor een enkele les. Elk lesdoel
-beschrijft iets dat leerlingen in die ene les leren, en dat hen helpt om **stap voor stap toe te werken**
-naar een of meer van de overkoepelende leerdoelen.
+Lesdoelen (learning_objectives) zijn specifieke, concrete doelen voor een enkele les. Ze staan op een
+LAGER Bloom-niveau dan de leerdoelen en vormen de treden van de trap naar het einddoel.
 
+Voorbeeld (havo 3, 8 lessen Geschiedenis - WO2):
+- Leerdoel: "Leerlingen kunnen oorzaken en gevolgen van WO2 analyseren en beargumenteren welke
+  factor het meest bepalend was, zichtbaar in een onderbouwd betoog."
+- Lesdoel les 1: "Leerlingen kunnen drie oorzaken van WO2 benoemen." (onthouden)
+- Lesdoel les 4: "Leerlingen kunnen oorzaken en gevolgen koppelen aan een tijdlijn." (begrijpen/toepassen)
+- Lesdoel les 7: "Leerlingen kunnen beargumenteren welke oorzaak het meest bepalend was." (analyseren)
+
+Let op: de lesdoelen klimmen geleidelijk op de Bloom-piramide, maar zijn elk afzonderlijk concreter
+en beperkter dan het leerdoel.
+
+Regels:
 - Elke les heeft 1 of 2 lesdoelen.
 - Elk lesdoel moet verwijzen naar welk(e) leerdoel(en) het aan bijdraagt via goal_indices
   (0-gebaseerde indexen zoals genummerd in het overzicht).
 - Elk lesdoel draagt bij aan minimaal 1 leerdoel.
 - Niet elke les hoeft elk leerdoel te raken, maar over de hele reeks moeten alle
   leerdoelen gedekt zijn door de combinatie van alle lesdoelen samen.
-- Denk eraan: een lesdoel is een concrete, haalbare stap richting het leerdoel —
+- Een lesdoel is een concrete, haalbare stap richting het leerdoel —
   niet het leerdoel zelf. De leerlingen bereiken het leerdoel pas na meerdere lessen.
 
 ## Uitvoer

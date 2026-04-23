@@ -6,7 +6,7 @@ import os
 
 from app.config import settings
 
-MODEL_NAME = "openrouter:xiaomi/mimo-v2-pro"
+MODEL_NAME = "openrouter:xiaomi/mimo-v2.5-pro"
 
 
 def configure_env() -> None:

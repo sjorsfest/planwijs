@@ -25,6 +25,7 @@ from .utils import (
     _compose_overview_from_parts,
     _ensure_series_summary_includes_delivery,
     _learning_goal_feedback_lines,
+    _max_learning_goals,
     _normalize_learning_goals_for_context,
     _normalize_lesson_outline_for_context,
     _unique_non_empty,
@@ -39,7 +40,8 @@ async def _generate_learning_goals(
     draft_result = await get_overview_learning_goals_agent().run(
         _build_learning_goals_prompt(ctx, identity)
     )
-    draft_goals = _unique_non_empty(draft_result.output.learning_goals, limit=6)
+    goal_limit = _max_learning_goals(ctx.num_lessons)
+    draft_goals = _unique_non_empty(draft_result.output.learning_goals, limit=goal_limit)
     quality_feedback = _learning_goal_feedback_lines(draft_goals, ctx=ctx)
     if quality_feedback:
         refined_result = await get_overview_learning_goals_agent().run(
@@ -50,7 +52,7 @@ async def _generate_learning_goals(
                 quality_feedback=quality_feedback,
             )
         )
-        refined_goals = _unique_non_empty(refined_result.output.learning_goals, limit=6)
+        refined_goals = _unique_non_empty(refined_result.output.learning_goals, limit=goal_limit)
         if len(_learning_goal_feedback_lines(refined_goals, ctx=ctx)) <= len(quality_feedback):
             draft_goals = refined_goals
 

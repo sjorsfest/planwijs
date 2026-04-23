@@ -92,11 +92,13 @@ concrete lessen te genereren.
 - series_summary: 2-4 zinnen die kort uitleggen waar de reeks over gaat, waarom dit onderwerp relevant is
   en hoe de reeks inhoudelijk oploopt.
 - series_themes: 3-6 korte thema's of kernmotieven die door de hele reeks lopen.
-- learning_goals: een lijst van 4-6 overkoepelende leerdoelen voor de gehele lessenserie.
-  Elk leerdoel beschrijft een vaardigheid of competentie die leerlingen ontwikkelen:
-  wat ze aan het einde kunnen *doen*, *begrijpen* of *toepassen* dat ze voorheen niet konden.
+- learning_goals: een lijst van overkoepelende leerdoelen voor de gehele lessenserie.
+  Het aantal hangt af van de reekslengte (1-2 lessen: 1-2 doelen, 3-5 lessen: 2-3, 6-10 lessen: 3-5, 11+ lessen: 5-8).
+  Elk leerdoel beschrijft het EINDGEDRAG na de hele reeks — niet wat leerlingen in één les doen.
+  Leerdoelen liggen hoger op de Bloom-piramide dan individuele lesdoelen, maar passend bij het niveau en leerjaar.
   Formuleer vanuit het perspectief van de leerling, concreet en ambitieus.
-  Bijvoorbeeld: "Leerlingen kunnen fotosynthese uitleggen en de rol van licht daarin beschrijven."
+  Bijvoorbeeld (havo 4): "Leerlingen kunnen het effect van CO₂-uitstoot op het klimaat analyseren
+  en een advies schrijven voor een lokaal bedrijf om hun voetafdruk te verkleinen, zichtbaar in een onderbouwd adviesrapport."
 - key_knowledge: een lijst van 6-10 kernconcepten en feitelijke kennis die leerlingen opdoen.
   Dit zijn de inhoudelijke bouwstenen: concrete begrippen, feiten of inzichten die leerlingen
   kennen aan het einde van de lessenserie. Formuleer inhoudelijk, niet als vaardigheid.
@@ -219,22 +221,26 @@ Geen tijdsblokken of lesfasen op minutenniveau.
 _OVERVIEW_LEARNING_GOALS_SYSTEM_PROMPT = """\
 Je schrijft alleen learning_goals voor een lessenreeks.
 
+## Wat is een leerdoel?
+Een leerdoel beschrijft het EINDGEDRAG na de hele lessenreeks — niet wat leerlingen in één les doen.
+Denk aan een trap: het leerdoel is de bovenste verdieping, de lesdoelen (per les) zijn de treden ernaartoe.
+
 Uitvoer:
-- learning_goals: 4-6 doelen die direct bruikbaar zijn voor lesontwerp en toetsing in de klas.
+- learning_goals: het aantal hangt af van de reekslengte (1-2 lessen: 1-2, 3-5 lessen: 2-3, 6-10 lessen: 3-5, 11+ lessen: 5-8).
 
 Kwaliteitsnorm per leerdoel (alles verplicht):
-1. Gebruik een observeerbaar leerlingwerkwoord (bijv. benoemen, uitleggen, vergelijken, classificeren, beargumenteren).
-2. Benoem specifieke inhoud (geen brede labels zoals "democratie" of "de Grieken").
-3. Maak succes zichtbaar in leerlinggedrag of product (bijv. korte uitleg, tabel, sorteeropdracht, beargumenteerd antwoord).
-4. Eén hoofdactie per leerdoel; split doelen als ze meerdere acties combineren.
-5. Kies cognitief niveau passend bij niveau/leerjaar en de fase van de reeks.
-6. Formuleer zo dat het direct als opdracht of check gebruikt kan worden.
+1. Formuleer als EINDGEDRAG na de hele reeks, niet als los lesdoel.
+2. Gebruik een observeerbaar werkwoord op passend Bloom-niveau voor de doelgroep.
+3. Benoem specifieke inhoud (geen brede labels zoals "democratie" of "de Grieken").
+4. Maak succes zichtbaar in een concreet product of respons.
+5. Samengestelde vaardigheden zijn toegestaan als ze een geïntegreerde competentie vormen.
+6. Kies Bloom-niveau passend bij niveau/leerjaar (vmbo: toepassen, havo: analyseren, vwo bovenbouw: evalueren/creëren).
 
 Vermijd als hoofdwerkwoord:
 - begrijpen, weten, kennen, leren over, vertrouwd raken met, inzicht krijgen in, verkennen.
 
 Voorkeursvorm:
-- "Leerlingen kunnen [actie] [specifieke inhoud], zichtbaar in [concrete respons/product]."
+- "Leerlingen kunnen [actie op passend Bloom-niveau] [inhoudelijk domein], zichtbaar in [product dat de hele reeks overspant]."
 
 Schrijf helder Nederlands en vermijd vage formuleringen.
 """

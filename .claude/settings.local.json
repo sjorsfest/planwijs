@@ -34,7 +34,14 @@
       "Bash(python -m pyright app/agents/lesplan/types.py app/tasks.py app/agents/lesplan/lessons_agent.py)",
       "Bash(python -m mypy app/agents/lesplan/types.py app/tasks.py app/agents/lesplan/lessons_agent.py)",
       "Bash(python -c \"from app.agents.lesplan.types import GeneratedLessonPlan, GeneratedLessons; print\\(''Types OK''\\)\")",
-      "Bash(python -m pyright app/models/lesplan.py app/models/learning_goal.py app/models/lesson_objective.py app/models/lesson_objective_goal.py)"
+      "Bash(python -m pyright app/models/lesplan.py app/models/learning_goal.py app/models/lesson_objective.py app/models/lesson_objective_goal.py)",
+      "Bash(python -m py_compile app/agents/lesplan/overview_learning_goals_agent.py)",
+      "Bash(python -m py_compile app/agents/lesplan/lessons_agent.py)",
+      "Bash(python -m py_compile app/agents/lesplan/prompts.py)",
+      "Bash(python -m py_compile app/agents/lesplan/pipeline.py)",
+      "Bash(python -m py_compile app/agents/lesplan/utils.py)",
+      "Bash(python -m mypy app/agents/lesplan/overview_learning_goals_agent.py app/agents/lesplan/lessons_agent.py app/agents/lesplan/prompts.py app/agents/lesplan/pipeline.py app/agents/lesplan/utils.py --ignore-missing-imports)",
+      "Bash(python -c \"from app.agents.lesplan.pipeline import generate_overview, generate_lessons; from app.agents.lesplan.utils import _max_learning_goals, _blocked_high_level_verbs; print\\(''All imports OK''\\); print\\(''max goals for 2 lessons:'', _max_learning_goals\\(2\\)\\); print\\(''max goals for 8 lessons:'', _max_learning_goals\\(8\\)\\); print\\(''max goals for 15 lessons:'', _max_learning_goals\\(15\\)\\)\")"
     ]
   }
 }

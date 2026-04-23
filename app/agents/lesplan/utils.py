@@ -278,6 +278,7 @@ def _unique_non_empty(values: list[str], *, limit: int | None = None) -> list[st
 
 
 _LEARNING_GOAL_OBSERVABLE_VERBS = (
+    # Onthouden / Begrijpen
     "benoemen",
     "noemen",
     "identificeren",
@@ -289,16 +290,34 @@ _LEARNING_GOAL_OBSERVABLE_VERBS = (
     "beschrijven",
     "uitleggen",
     "samenvatten",
+    # Toepassen
     "classificeren",
     "vergelijken",
     "ordenen",
-    "beargumenteren",
-    "onderbouwen",
     "berekenen",
     "oplossen",
     "toepassen",
     "kiezen",
     "invullen",
+    "uitvoeren",
+    # Analyseren
+    "analyseren",
+    "beargumenteren",
+    "onderbouwen",
+    "relateren",
+    "structureren",
+    "afleiden",
+    "voorspellen",
+    # Evalueren
+    "beoordelen",
+    "evalueren",
+    "adviseren",
+    # Creëren
+    "ontwerpen",
+    "formuleren",
+    "ontwikkelen",
+    "construeren",
+    "integreren",
 )
 _LEARNING_GOAL_VAGUE_VERBS = (
     "begrijpen",
@@ -330,12 +349,35 @@ _LEARNING_GOAL_VISIBLE_OUTPUT_MARKERS = (
     "bron",
     "zinnen",
     "samenvatting",
+    # Reeks-niveau producten
+    "betoog",
+    "presentatie",
+    "onderzoek",
+    "essay",
+    "verslag",
+    "portfolio",
+    "analyse",
+    "onderbouwing",
+    "argumentatie",
+    "evaluatie",
+    "casusanalyse",
+    "adviesrapport",
+    "actieplan",
+    "visie",
 )
-_LEARNING_GOAL_HIGH_LEVEL_VERBS = (
+_LEARNING_GOAL_HIGH_LEVEL_VERBS_TIER1 = (
     "evalueren",
     "beoordelen",
     "wegen",
     "kritisch",
+    "creëren",
+    "ontwerpen",
+    "synthetiseren",
+)
+_LEARNING_GOAL_HIGH_LEVEL_VERBS_TIER2 = (
+    "creëren",
+    "ontwerpen",
+    "synthetiseren",
 )
 
 
@@ -417,6 +459,23 @@ def _is_introductory_level(ctx: LesplanContext) -> bool:
     return "vmbo" in level or year in {"leerjaar_1", "leerjaar_2"}
 
 
+def _blocked_high_level_verbs(ctx: LesplanContext) -> tuple[str, ...]:
+    """Return high-level Bloom verbs that are too ambitious for this doelgroep."""
+    level = (ctx.level or "").lower()
+    year = (ctx.school_year or "").lower()
+    is_onderbouw = year in {"leerjaar_1", "leerjaar_2"}
+    is_vmbo = "vmbo" in level
+    is_havo = "havo" in level
+
+    if is_vmbo and is_onderbouw:
+        return _LEARNING_GOAL_HIGH_LEVEL_VERBS_TIER1
+    if is_vmbo:
+        return _LEARNING_GOAL_HIGH_LEVEL_VERBS_TIER2
+    if is_havo and is_onderbouw:
+        return _LEARNING_GOAL_HIGH_LEVEL_VERBS_TIER2
+    return ()
+
+
 def _extract_goal_topic(goal: str) -> str:
     topic = _squash_text(goal)
     topic = re.sub(r"^leerlingen\s+(?:kunnen\s+)?", "", topic, flags=re.IGNORECASE)
@@ -457,12 +516,13 @@ def _goal_quality_issues(goal: str, *, ctx: LesplanContext) -> list[str]:
         issues.append("Noem expliciet wat leerlingen doen.")
     if not any(marker in normalized for marker in _LEARNING_GOAL_VISIBLE_OUTPUT_MARKERS):
         issues.append("Maak succes zichtbaar met een concrete output.")
-    if normalized.count(" en ") >= 3:
-        issues.append("Splits gecombineerde doelen op in één hoofdactie.")
+    if normalized.count(" en ") >= 4:
+        issues.append("Splits gecombineerde doelen op.")
     if len(normalized.split()) < 8:
         issues.append("Maak inhoud specifieker en afgebakend.")
-    if _is_introductory_level(ctx):
-        for verb in _LEARNING_GOAL_HIGH_LEVEL_VERBS:
+    blocked_verbs = _blocked_high_level_verbs(ctx)
+    if blocked_verbs:
+        for verb in blocked_verbs:
             if re.search(rf"\b{re.escape(verb)}\w*\b", normalized):
                 issues.append("Cognitief niveau lijkt te hoog voor deze doelgroep/fase.")
                 break
@@ -515,13 +575,24 @@ def _rewrite_weak_learning_goal(
     )
     if _is_introductory_level(ctx):
         return (
-            f"Leerlingen kunnen kernbegrippen over {topic} benoemen en koppelen aan de juiste uitleg, "
-            "zichtbaar in een korte sorteer- of koppelopdracht."
+            f"Leerlingen kunnen kennis over {topic} toepassen in een herkenbare situatie, "
+            "zichtbaar in een korte verwerkingsopdracht."
         )
     return (
-        f"Leerlingen kunnen {topic} uitleggen met passende vakbegrippen, "
-        "zichtbaar in een korte schriftelijke of mondelinge toelichting."
+        f"Leerlingen kunnen {topic} analyseren en hun conclusie onderbouwen met vakbegrippen, "
+        "zichtbaar in een beargumenteerd antwoord of korte analyse."
     )
+
+
+def _max_learning_goals(num_lessons: int) -> int:
+    """Return the maximum number of learning goals based on series length."""
+    if num_lessons <= 2:
+        return 2
+    if num_lessons <= 5:
+        return 3
+    if num_lessons <= 10:
+        return 5
+    return 8
 
 
 def _normalize_learning_goals_for_context(
@@ -530,7 +601,8 @@ def _normalize_learning_goals_for_context(
     ctx: LesplanContext,
     sequence: GeneratedOverviewSequence | None = None,
 ) -> list[str]:
-    cleaned = _unique_non_empty(goals, limit=6)
+    limit = _max_learning_goals(ctx.num_lessons)
+    cleaned = _unique_non_empty(goals, limit=limit)
     if not cleaned:
         return [
             _rewrite_weak_learning_goal(
@@ -559,7 +631,7 @@ def _normalize_learning_goals_for_context(
             continue
         normalized.append(compact_goal)
 
-    normalized = _unique_non_empty(normalized, limit=6)
+    normalized = _unique_non_empty(normalized, limit=limit)
     if normalized:
         return normalized
 
@@ -1241,9 +1313,11 @@ def _build_learning_goals_prompt(
             "Herschrijf ALLE leerdoelen zodat ze aan alle punten voldoen."
         )
 
+    max_goals = _max_learning_goals(ctx.num_lessons)
     return (
         f"{background}\n\n{context_block}{rewrite_block}{feedback_block}\n\n"
-        "Schrijf alleen learning_goals. Formuleer ze direct toetsbaar voor in de les."
+        f"Schrijf alleen learning_goals (maximaal {max_goals}). "
+        "Formuleer ze als het eindgedrag na de volledige lessenreeks."
     )
 
 
